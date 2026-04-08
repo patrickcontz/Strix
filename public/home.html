@@ -289,7 +289,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
     </div>
     <div class="topbar-nav">
       <a class="nav-link active" href="home.html">Home</a>
-      <a class="nav-link" href="index.html">Derby</a>
+      <a class="nav-link" href="derby.html">Derby</a>
       <a class="nav-link" href="#leaderboard-section">Leaderboard</a>
     </div>
     <div class="topbar-right">
@@ -319,7 +319,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
       <h1 class="hero-title">Race.<br><span>Bet.</span><br>Win Big.</h1>
       <p class="hero-subtitle">The premier virtual horse racing simulation. Real odds, real tension, real leaderboards. Five concurrent race rooms running 24/7.</p>
       <div class="hero-cta-row">
-        <a href="index.html" class="btn-primary">Play Derby Now</a>
+        <a href="derby.html" class="btn-primary">Play Derby Now</a>
         <a href="#lobby-section" class="btn-ghost">View Lobby</a>
       </div>
     </div>
@@ -368,7 +368,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
   </div>
 
   <div class="games-grid">
-    <a href="index.html" class="game-card featured">
+    <a href="derby.html" class="game-card featured">
       <div class="game-thumb game-thumb-derby">
         <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
           <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:4px;color:var(--lime);opacity:0.8;">GRAND DERBY</div>
@@ -426,7 +426,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
       <div class="promo-eyebrow">Weekly Race</div>
       <div class="promo-title">Championship Cup</div>
       <div class="promo-desc">Compete in the weekly Grand Derby league. Top 10 on the leaderboard earn prestige badges every Sunday.</div>
-      <a href="index.html" class="promo-link">Join Race <span>→</span></a>
+      <a href="derby.html" class="promo-link">Join Race <span>→</span></a>
     </div>
     <div class="promo-card promo-c">
       <div class="promo-eyebrow">Stats</div>
@@ -497,7 +497,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
 // ════════════════════════════════════════════════════════
 const SERVER_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:3001'
-  : 'https://YOUR-APP-NAME.onrender.com'; // <-- UPDATE THIS
+  : 'https://strix-1xlv.onrender.com'; // <-- UPDATE THIS
 
 // ── AUTH ─────────────────────────────────────────────────
 let authToken = localStorage.getItem('strix_token');
@@ -614,7 +614,7 @@ function renderLobby(rooms) {
   grid.innerHTML = '';
   rooms.forEach(r => {
     const div = document.createElement('a');
-    div.href = 'index.html?race=' + r.id;
+    div.href = 'derby.html?race=' + r.id;
     div.className = 'lobby-card state-' + r.state;
     div.innerHTML = `
       <div class="lobby-card-id">Race Room ${r.id}</div>
