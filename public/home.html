@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strix | Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo_icon.png">
+<style>
+:root {
+  --lime: #84cc16; --lime-bright: #a3e635; --lime-dim: #3a5a06;
+  --bg-deep: #04060f; --bg-card: #070b1a; --bg-card2: #080d1f;
+  --border: #111d35; --border-lime: #1e3007;
+  --text: #dde8cc; --text-dim: #4f6070; --text-mid: #8a9aaa;
+  --green: #22c55e; --red: #ef4444; --cyan: #38bdf8;
+  --purple: #a78bfa; --amber: #f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;overflow-x:hidden;display:flex;flex-direction:column;}
+main{flex:1;}
+.wrap{width:90vw;max-width:1400px;margin:auto;padding:18px 0;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.03) 3px,rgba(0,0,0,0.03) 4px);}
+
+/* ── AUTH MODAL ── */
+#authOverlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(2,4,15,0.96);backdrop-filter:blur(12px);}
+#authOverlay.hidden{display:none;}
+.auth-box{width:440px;max-width:94vw;background:var(--bg-card);border:1px solid var(--border);border-radius:18px;overflow:hidden;position:relative;}
+.auth-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--lime),transparent);}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);}
+.auth-tab{flex:1;padding:16px;text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border:none;background:transparent;transition:0.18s;}
+.auth-tab.active{color:var(--lime);background:rgba(132,204,22,0.04);}
+.auth-body{padding:32px;}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:26px;justify-content:center;}
+.auth-logo-text{font-family:'Orbitron',monospace;font-size:26px;font-weight:900;color:var(--lime-bright);letter-spacing:5px;}
+.auth-tagline{font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:24px;}
+.auth-field{margin-bottom:14px;}
+.auth-label{display:block;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;}
+.auth-input{width:100%;padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;transition:border-color 0.2s;}
+.auth-input:focus{outline:none;border-color:var(--lime-dim);}
+.auth-btn{width:100%;padding:13px;border-radius:9px;border:none;background:linear-gradient(135deg,#4d7c0f,var(--lime));color:#000;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:8px;transition:0.2s;box-shadow:0 4px 20px rgba(132,204,22,0.25);}
+.auth-btn:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(132,204,22,0.4);}
+.auth-error{font-size:12px;color:var(--red);text-align:center;min-height:18px;margin-top:10px;}
+.auth-note{font-size:11px;color:var(--text-dim);text-align:center;margin-top:14px;line-height:1.6;}
+.auth-note span{color:var(--lime);font-weight:700;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:12px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;position:relative;overflow:hidden;}
+.topbar::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--lime),transparent);opacity:0.55;}
+.logo-area{display:flex;align-items:center;gap:14px;}
+.logo-area img{height:40px;width:auto;}
+#fallback-logo{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--lime-bright);letter-spacing:4px;display:none;}
+.logo-tagline{font-size:10px;font-weight:600;color:var(--lime-dim);letter-spacing:3px;text-transform:uppercase;}
+.topbar-nav{display:flex;align-items:center;gap:6px;}
+.nav-link{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:7px 14px;border-radius:8px;text-decoration:none;color:var(--text-dim);border:1px solid transparent;transition:0.18s;}
+.nav-link:hover{color:var(--lime);border-color:var(--border-lime);background:rgba(132,204,22,0.04);}
+.nav-link.active{color:var(--lime);border-color:var(--border-lime);background:rgba(132,204,22,0.06);}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.balance-pill{display:flex;align-items:center;gap:10px;background:rgba(132,204,22,0.05);border:1px solid var(--lime-dim);border-radius:9px;padding:9px 16px;}
+.balance-label{font-size:10px;color:var(--lime-dim);letter-spacing:2px;text-transform:uppercase;font-weight:700;}
+.balance-amount{font-family:'Orbitron',monospace;font-size:17px;font-weight:700;color:var(--lime-bright);}
+.user-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:pointer;font-size:12px;font-weight:700;color:var(--text-mid);transition:0.2s;}
+.user-btn:hover{border-color:var(--border-lime);color:var(--lime);}
+#usernameDisplay{color:var(--lime);}
+
+/* ── LIVE ODDS TICKER ── */
+.ticker-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:18px;overflow:hidden;position:relative;}
+.ticker-label{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--lime);background:var(--bg-card);padding-right:12px;z-index:2;}
+.ticker-track{display:flex;gap:40px;white-space:nowrap;animation:ticker 32s linear infinite;padding-left:100px;}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ticker-item{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:1px;}
+.ticker-horse{color:var(--text-mid);}
+.ticker-odds{font-family:'Orbitron',monospace;font-size:10px;}
+.ticker-up{color:var(--green);}
+.ticker-down{color:var(--red);}
+
+/* ── HERO ── */
+.hero{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--border);margin-bottom:22px;min-height:340px;display:flex;align-items:center;background:var(--bg-card2);}
+.hero-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(132,204,22,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(132,204,22,0.04) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%);}
+.hero-glow{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(132,204,22,0.07) 0%,transparent 70%);top:-180px;right:-100px;pointer-events:none;}
+.hero-content{position:relative;z-index:2;padding:52px 56px;flex:1;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--lime);border:1px solid var(--border-lime);background:rgba(132,204,22,0.05);border-radius:20px;padding:5px 14px;margin-bottom:20px;}
+.hero-eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime);animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.hero-title{font-family:'Orbitron',monospace;font-size:52px;font-weight:900;line-height:1.05;margin-bottom:14px;letter-spacing:-1px;color:var(--text);}
+.hero-title span{color:var(--lime-bright);}
+.hero-subtitle{font-size:15px;color:var(--text-mid);line-height:1.7;max-width:500px;margin-bottom:28px;}
+.hero-cta-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.btn-primary{display:inline-block;padding:13px 32px;border-radius:9px;background:linear-gradient(135deg,#4d7c0f,var(--lime));color:#000;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:0.2s;border:none;text-decoration:none;box-shadow:0 4px 20px rgba(132,204,22,0.25);}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(132,204,22,0.4);}
+.btn-ghost{display:inline-block;padding:13px 26px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text-mid);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:0.2s;text-decoration:none;}
+.btn-ghost:hover{border-color:var(--lime-dim);color:var(--lime);}
+@media(max-width:860px){.hero-content{padding:36px 28px;}.hero-title{font-size:34px;}}
+
+/* ── STAT TILES ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+.stat-tile{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;}
+.stat-tile::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--lime),transparent);opacity:0.3;}
+.stat-tile-val{font-family:'Orbitron',monospace;font-size:26px;font-weight:700;color:var(--lime-bright);margin-bottom:4px;}
+.stat-tile-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);}
+.stat-tile-sub{font-size:11px;color:var(--green);margin-top:6px;font-weight:600;}
+@media(max-width:700px){.stat-row{grid-template-columns:1fr 1fr;}}
+
+/* ── LOBBY ── */
+.section-divider{display:flex;align-items:center;gap:14px;margin:4px 0 18px;}
+.divider-line{flex:1;height:1px;background:var(--border);}
+.divider-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);font-weight:700;white-space:nowrap;}
+
+.lobby-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+@media(max-width:1000px){.lobby-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.lobby-grid{grid-template-columns:1fr 1fr;}}
+
+.lobby-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;text-decoration:none;color:inherit;transition:border-color 0.2s,transform 0.2s;display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden;}
+.lobby-card:hover{border-color:rgba(132,204,22,0.35);transform:translateY(-2px);}
+.lobby-card.state-open{border-color:rgba(132,204,22,0.2);}
+.lobby-card.state-racing{border-color:rgba(56,189,248,0.35);animation:racePulse 1.5s infinite;}
+@keyframes racePulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 16px rgba(56,189,248,0.15)}}
+.lobby-card.state-countdown{border-color:rgba(245,158,11,0.35);}
+.lobby-card.state-results{border-color:rgba(167,139,250,0.3);}
+.lobby-card-id{font-family:'Orbitron',monospace;font-size:11px;color:var(--text-dim);font-weight:700;}
+.lobby-card-type{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--text);}
+.lobby-card-label{font-size:11px;color:var(--text-dim);}
+.lobby-card-state{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:20px;width:fit-content;}
+.state-badge-open{color:var(--lime);background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);}
+.state-badge-racing{color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);}
+.state-badge-racing::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);animation:blink 1s infinite;}
+.state-badge-countdown{color:var(--amber);background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);}
+.state-badge-results{color:var(--purple);background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);}
+.lobby-card-players{font-size:11px;color:var(--text-mid);}
+.lobby-play-btn{margin-top:auto;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 14px;border-radius:7px;border:none;cursor:pointer;transition:0.18s;background:linear-gradient(135deg,#4d7c0f,var(--lime));color:#000;display:inline-block;text-align:center;text-decoration:none;}
+
+/* ── GAMES GRID ── */
+.games-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+@media(max-width:1000px){.games-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.games-grid{grid-template-columns:1fr;}}
+.game-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:border-color 0.2s,transform 0.2s;cursor:pointer;text-decoration:none;color:inherit;position:relative;}
+.game-card:hover{border-color:rgba(132,204,22,0.35);transform:translateY(-3px);}
+.game-card.featured{border-color:rgba(132,204,22,0.4);box-shadow:0 0 40px rgba(132,204,22,0.06);}
+.game-card.featured::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--lime),transparent);}
+.game-card.locked{opacity:0.5;cursor:not-allowed;}
+.game-card.locked:hover{transform:none;border-color:var(--border);}
+.game-thumb{width:100%;height:160px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.game-thumb-derby{background:linear-gradient(160deg,#020612,#030910,#05101c);background-image:linear-gradient(rgba(132,204,22,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(132,204,22,0.03) 1px,transparent 1px);background-size:32px 32px;}
+.game-thumb-cards{background:linear-gradient(160deg,#060212,#090318,#110524);}
+.game-thumb-slots{background:linear-gradient(160deg,#120608,#1c0810,#260a14);}
+.game-thumb-roulette{background:linear-gradient(160deg,#030c06,#041409,#05180c);}
+.game-thumb-crash{background:linear-gradient(160deg,#0a0702,#120e04,#1a1406);}
+.game-thumb-dice{background:linear-gradient(160deg,#020812,#030c1a,#041022);}
+.thumb-icon{font-size:56px;opacity:0.18;user-select:none;}
+.game-badge{position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:20px;}
+.badge-live{color:var(--lime);background:rgba(132,204,22,0.12);border:1px solid rgba(132,204,22,0.3);}
+.badge-soon{color:var(--text-dim);background:rgba(255,255,255,0.04);border:1px solid var(--border);}
+.badge-hot{color:#fb923c;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.25);}
+.badge-new{color:var(--cyan);background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);}
+.game-body{padding:16px 18px 18px;flex:1;display:flex;flex-direction:column;}
+.game-title{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.game-desc{font-size:12px;color:var(--text-mid);line-height:1.6;flex:1;margin-bottom:12px;}
+.game-meta{display:flex;align-items:center;justify-content:space-between;}
+.game-rtp{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);}
+.game-rtp span{color:var(--lime);}
+.game-play-btn{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border-radius:7px;border:none;cursor:pointer;transition:0.18s;}
+.game-play-btn.active{background:linear-gradient(135deg,#4d7c0f,var(--lime));color:#000;}
+.game-play-btn.active:hover{box-shadow:0 4px 16px rgba(132,204,22,0.35);}
+.game-play-btn.disabled{background:rgba(255,255,255,0.04);color:var(--text-dim);cursor:not-allowed;border:1px solid var(--border);}
+
+/* ── PROMOTIONS ── */
+.promos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;}
+@media(max-width:800px){.promos-grid{grid-template-columns:1fr;}}
+.promo-card{border-radius:12px;padding:22px;border:1px solid var(--border);background:var(--bg-card);position:relative;overflow:hidden;}
+.promo-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.promo-card.promo-a::before{background:linear-gradient(90deg,transparent,var(--lime),transparent);}
+.promo-card.promo-b::before{background:linear-gradient(90deg,transparent,var(--cyan),transparent);}
+.promo-card.promo-c::before{background:linear-gradient(90deg,transparent,var(--purple),transparent);}
+.promo-eyebrow{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;}
+.promo-card.promo-a .promo-eyebrow{color:var(--lime-dim);}
+.promo-card.promo-b .promo-eyebrow{color:rgba(56,189,248,0.5);}
+.promo-card.promo-c .promo-eyebrow{color:rgba(167,139,250,0.5);}
+.promo-title{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;margin-bottom:6px;}
+.promo-card.promo-a .promo-title{color:var(--lime-bright);}
+.promo-card.promo-b .promo-title{color:var(--cyan);}
+.promo-card.promo-c .promo-title{color:var(--purple);}
+.promo-desc{font-size:12px;color:var(--text-mid);line-height:1.6;margin-bottom:14px;}
+.promo-link{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:gap 0.2s;}
+.promo-card.promo-a .promo-link{color:var(--lime);}
+.promo-card.promo-b .promo-link{color:var(--cyan);}
+.promo-card.promo-c .promo-link{color:var(--purple);}
+.promo-link:hover{gap:9px;}
+
+/* ── BOTTOM COLS ── */
+.bottom-cols{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:22px;}
+@media(max-width:900px){.bottom-cols{grid-template-columns:1fr;}}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.card-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(132,204,22,0.02);}
+.card-dot{width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime);}
+.card-title{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--lime);}
+.lb-table{width:100%;border-collapse:collapse;font-size:12px;}
+.lb-table th{padding:8px 14px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);text-align:left;border-bottom:1px solid var(--border);}
+.lb-table td{padding:10px 14px;border-bottom:1px solid rgba(17,29,53,0.4);}
+.lb-table tbody tr:hover{background:rgba(132,204,22,0.02);}
+.lb-table tbody tr:last-child td{border-bottom:none;}
+.rank-num{font-family:'Orbitron',monospace;font-size:10px;color:var(--text-dim);}
+.rank-1{color:var(--lime-bright);}
+.rank-2{color:var(--text-mid);}
+.rank-3{color:#ca8a04;}
+.player-name{font-weight:700;color:var(--text);}
+.payout-val{font-family:'Orbitron',monospace;font-size:12px;color:var(--green);font-weight:700;}
+.activity-feed{padding:10px 14px;}
+.activity-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(17,29,53,0.4);}
+.activity-item:last-child{border-bottom:none;}
+.activity-dot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.activity-text{font-size:12px;color:var(--text-mid);line-height:1.5;}
+.activity-text strong{color:var(--text);}
+.activity-time{font-size:10px;color:var(--text-dim);margin-top:2px;}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px 0 20px;margin-top:8px;}
+.footer-inner{width:90vw;max-width:1400px;margin:auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px;align-items:start;}
+.footer-brand{display:flex;flex-direction:column;gap:10px;}
+.footer-brand img{height:auto;width:5rem;opacity:0.7;}
+.footer-tagline{font-size:11px;color:var(--text-dim);line-height:1.6;max-width:220px;}
+.footer-warning{background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:8px;padding:12px 14px;font-size:10px;color:var(--text-dim);line-height:1.7;}
+.footer-warning strong{color:var(--red);font-size:10px;letter-spacing:1px;display:block;margin-bottom:4px;text-transform:uppercase;}
+.footer-links{display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
+.footer-links a{font-size:11px;color:var(--text-dim);text-decoration:none;letter-spacing:1px;transition:color 0.15s;}
+.footer-links a:hover{color:var(--lime);}
+.footer-bottom{width:90vw;max-width:1400px;margin:18px auto 0;padding-top:16px;border-top:1px solid rgba(17,29,53,0.5);display:flex;justify-content:space-between;align-items:center;}
+.footer-copy{font-size:10px;color:var(--text-dim);letter-spacing:1px;}
+.footer-badges{display:flex;gap:8px;}
+.footer-badge{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;border:1px solid var(--border);color:var(--text-dim);}
+.footer-badge.green{border-color:rgba(34,197,94,0.2);color:var(--green);}
+</style>
+</head>
+<body>
+
+<!-- ── AUTH MODAL ── -->
+<div id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Create Account</button>
+    </div>
+    <div class="auth-body">
+      <div class="auth-logo"><span class="auth-logo-text">STRIX</span></div>
+      <div class="auth-tagline">Online Casino — Simulation Only</div>
+
+      <div id="loginForm">
+        <div class="auth-field">
+          <label class="auth-label">Username</label>
+          <input class="auth-input" id="loginUser" type="text" placeholder="Your username" autocomplete="username">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="loginPass" type="password" placeholder="Your password" autocomplete="current-password">
+        </div>
+        <button class="auth-btn" onclick="doLogin()">Sign In</button>
+      </div>
+
+      <div id="registerForm" style="display:none;">
+        <div class="auth-field">
+          <label class="auth-label">Username</label>
+          <input class="auth-input" id="regUser" type="text" placeholder="3–20 characters, letters & numbers" autocomplete="username">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="regPass" type="password" placeholder="At least 6 characters" autocomplete="new-password">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Confirm Password</label>
+          <input class="auth-input" id="regPass2" type="password" placeholder="Repeat password" autocomplete="new-password">
+        </div>
+        <button class="auth-btn" onclick="doRegister()">Create Account — Get $1,000</button>
+      </div>
+
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-note">All currency is <span>virtual</span>. No real money. 18+ only.</div>
+    </div>
+  </div>
+</div>
+
+<main>
+<div class="wrap">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo-area">
+      <img src="logo.png" alt="Strix" onerror="this.style.display='none';document.getElementById('fallback-logo').style.display='block'">
+      <span id="fallback-logo">STRIX</span>
+      <div class="logo-tagline">Online Casino</div>
+    </div>
+    <div class="topbar-nav">
+      <a class="nav-link active" href="home.html">Home</a>
+      <a class="nav-link" href="index.html">Derby</a>
+      <a class="nav-link" href="#leaderboard-section">Leaderboard</a>
+    </div>
+    <div class="topbar-right">
+      <div class="balance-pill">
+        <span class="balance-label">Balance</span>
+        <span class="balance-amount" id="balanceDisplay">—</span>
+      </div>
+      <div class="user-btn" onclick="logOut()">
+        <span id="usernameDisplay">…</span>
+        <span style="font-size:10px;opacity:0.5;">▸ Logout</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <span class="ticker-label">LIVE ODDS</span>
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-grid-bg"></div>
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+      <div class="hero-eyebrow">Live Now — Strix Derby Multiplayer</div>
+      <h1 class="hero-title">Race.<br><span>Bet.</span><br>Win Big.</h1>
+      <p class="hero-subtitle">The premier virtual horse racing simulation. Real odds, real tension, real leaderboards. Five concurrent race rooms running 24/7.</p>
+      <div class="hero-cta-row">
+        <a href="index.html" class="btn-primary">Play Derby Now</a>
+        <a href="#lobby-section" class="btn-ghost">View Lobby</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE STATS -->
+  <div class="stat-row">
+    <div class="stat-tile">
+      <div class="stat-tile-val" id="statWagered">$0</div>
+      <div class="stat-tile-lbl">Total wagered</div>
+      <div class="stat-tile-sub" id="statUsers">0 registered players</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-tile-val" id="statActive">0</div>
+      <div class="stat-tile-lbl">Online now</div>
+      <div class="stat-tile-sub">Live connections</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-tile-val" id="statRaces">0</div>
+      <div class="stat-tile-lbl">Races run</div>
+      <div class="stat-tile-sub">All time</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-tile-val" id="statBigWin">$0</div>
+      <div class="stat-tile-lbl">Biggest payout</div>
+      <div class="stat-tile-sub" id="statBigWinner">—</div>
+    </div>
+  </div>
+
+  <!-- LIVE LOBBY -->
+  <div id="lobby-section" class="section-divider">
+    <div class="divider-line"></div>
+    <div class="divider-label">Live Race Rooms</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <div class="lobby-grid" id="lobbyGrid">
+    <!-- Filled by JS -->
+  </div>
+
+  <!-- GAMES -->
+  <div id="games" class="section-divider">
+    <div class="divider-line"></div>
+    <div class="divider-label">Minigames</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <div class="games-grid">
+    <a href="index.html" class="game-card featured">
+      <div class="game-thumb game-thumb-derby">
+        <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+          <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:4px;color:var(--lime);opacity:0.8;">GRAND DERBY</div>
+          <div style="display:flex;gap:14px;">
+            <div style="width:3px;height:60px;background:linear-gradient(to bottom,var(--lime),transparent);border-radius:2px;opacity:0.7;"></div>
+            <div style="width:3px;height:52px;margin-top:8px;background:linear-gradient(to bottom,var(--cyan),transparent);border-radius:2px;opacity:0.6;"></div>
+            <div style="width:3px;height:44px;margin-top:16px;background:linear-gradient(to bottom,#f59e0b,transparent);border-radius:2px;opacity:0.5;"></div>
+          </div>
+        </div>
+        <div class="game-badge badge-live">● Live</div>
+      </div>
+      <div class="game-body">
+        <div class="game-title">Strix Derby</div>
+        <div class="game-desc">Multiplayer horse racing. Five concurrent rooms, server-side physics, live leaderboards. Sprint, Distance, and Grand Derby formats.</div>
+        <div class="game-meta">
+          <div class="game-rtp">RTP <span>96.5%</span> &nbsp;|&nbsp; Up to <span>8.3x</span></div>
+          <button class="game-play-btn active">Play Now ›</button>
+        </div>
+      </div>
+    </a>
+    <div class="game-card locked">
+      <div class="game-thumb game-thumb-cards"><div class="thumb-icon">🃏</div><div class="game-badge badge-soon">Coming Soon</div></div>
+      <div class="game-body"><div class="game-title">Blackjack Pro</div><div class="game-desc">Classic 6-deck blackjack with split, double-down, and insurance. Compete on the daily high-score board.</div><div class="game-meta"><div class="game-rtp">RTP <span>99.5%</span></div><button class="game-play-btn disabled" disabled>Locked</button></div></div>
+    </div>
+    <div class="game-card locked">
+      <div class="game-thumb game-thumb-slots"><div class="thumb-icon">🎰</div><div class="game-badge badge-hot">Hot</div></div>
+      <div class="game-body"><div class="game-title">Strix Slots</div><div class="game-desc">Five-reel, 25-payline slots with wild multipliers, free spins, and a jackpot bonus round.</div><div class="game-meta"><div class="game-rtp">RTP <span>95.0%</span> &nbsp;|&nbsp; Up to <span>50x</span></div><button class="game-play-btn disabled" disabled>Locked</button></div></div>
+    </div>
+    <div class="game-card locked">
+      <div class="game-thumb game-thumb-roulette"><div class="thumb-icon">🎡</div><div class="game-badge badge-soon">Coming Soon</div></div>
+      <div class="game-body"><div class="game-title">European Roulette</div><div class="game-desc">Single-zero European roulette with full inside and outside betting. Neighbours and call bets included.</div><div class="game-meta"><div class="game-rtp">RTP <span>97.3%</span> &nbsp;|&nbsp; Up to <span>36x</span></div><button class="game-play-btn disabled" disabled>Locked</button></div></div>
+    </div>
+    <div class="game-card locked">
+      <div class="game-thumb game-thumb-crash"><div class="thumb-icon">📈</div><div class="game-badge badge-new">New</div></div>
+      <div class="game-body"><div class="game-title">Crash</div><div class="game-desc">Watch the multiplier climb and cash out before the crash. Auto-cashout, live chat, and recent history graph.</div><div class="game-meta"><div class="game-rtp">RTP <span>97.0%</span> &nbsp;|&nbsp; Up to <span>1000x</span></div><button class="game-play-btn disabled" disabled>Locked</button></div></div>
+    </div>
+    <div class="game-card locked">
+      <div class="game-thumb game-thumb-dice"><div class="thumb-icon">🎲</div><div class="game-badge badge-soon">Coming Soon</div></div>
+      <div class="game-body"><div class="game-title">Strix Dice</div><div class="game-desc">Set your own probability target and multiply your bet. Roll over or under. Up to 9,900x payout potential.</div><div class="game-meta"><div class="game-rtp">RTP <span>99.0%</span> &nbsp;|&nbsp; Up to <span>9900x</span></div><button class="game-play-btn disabled" disabled>Locked</button></div></div>
+    </div>
+  </div>
+
+  <!-- PROMOTIONS -->
+  <div class="section-divider">
+    <div class="divider-line"></div><div class="divider-label">Promotions</div><div class="divider-line"></div>
+  </div>
+  <div class="promos-grid">
+    <div class="promo-card promo-a">
+      <div class="promo-eyebrow">Welcome Bonus</div>
+      <div class="promo-title">$1,000 Free</div>
+      <div class="promo-desc">Every new account starts with $1,000 in virtual chips. No deposit, no catch — just create an account and race.</div>
+      <a href="#" class="promo-link" onclick="switchTab('register');return false;">Get Started <span>→</span></a>
+    </div>
+    <div class="promo-card promo-b">
+      <div class="promo-eyebrow">Weekly Race</div>
+      <div class="promo-title">Championship Cup</div>
+      <div class="promo-desc">Compete in the weekly Grand Derby league. Top 10 on the leaderboard earn prestige badges every Sunday.</div>
+      <a href="index.html" class="promo-link">Join Race <span>→</span></a>
+    </div>
+    <div class="promo-card promo-c">
+      <div class="promo-eyebrow">Stats</div>
+      <div class="promo-title">Real Tracking</div>
+      <div class="promo-desc">Every race, every bet, every win tracked server-side. Your balance, win rate, biggest win — all saved permanently.</div>
+      <a href="#leaderboard-section" class="promo-link">See Leaders <span>→</span></a>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD + LIVE FEED -->
+  <div id="leaderboard-section" class="section-divider">
+    <div class="divider-line"></div><div class="divider-label">Live Leaderboard &amp; Feed</div><div class="divider-line"></div>
+  </div>
+  <div class="bottom-cols">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber);"></div>
+        <div class="card-title" style="color:var(--amber);">Top Balances</div>
+      </div>
+      <table class="lb-table">
+        <thead><tr><th>#</th><th>Player</th><th>Balance</th><th>Win Rate</th><th>Biggest Win</th></tr></thead>
+        <tbody id="lbBody"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-dot" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan);"></div>
+        <div class="card-title" style="color:var(--cyan);">Recent Races</div>
+      </div>
+      <div class="activity-feed" id="activityFeed"></div>
+    </div>
+  </div>
+
+</div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="logo.png" alt="Strix" onerror="this.style.display='none'">
+      <p class="footer-tagline">Strix is a simulated casino platform for entertainment purposes only. No real money is involved.</p>
+    </div>
+    <div class="footer-warning">
+      <strong>Responsible Gaming</strong>
+      This is a simulated casino environment. All currency is virtual and has no real-world value. If you or someone you know has a gambling problem, please seek help from a licensed professional.
+    </div>
+    <div class="footer-links">
+      <a href="#">Terms &amp; Conditions</a>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Responsible Gaming</a>
+      <a href="#">About Strix</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span class="footer-copy">&copy; 2026 Strix Casino. Simulation only. No real money.</span>
+    <div class="footer-badges">
+      <span class="footer-badge">18+</span>
+      <span class="footer-badge green">Simulation Only</span>
+      <span class="footer-badge">No Real Money</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// CONFIG — change this to your Render.com URL after deploy
+// ════════════════════════════════════════════════════════
+const SERVER_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001'
+  : 'https://YOUR-APP-NAME.onrender.com'; // <-- UPDATE THIS
+
+// ── AUTH ─────────────────────────────────────────────────
+let authToken = localStorage.getItem('strix_token');
+let currentUser = null;
+
+function switchTab(tab) {
+  document.getElementById('loginForm').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('authError').textContent = '';
+}
+
+function setAuthError(msg) { document.getElementById('authError').textContent = msg; }
+
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (!u || !p) { setAuthError('Fill in all fields'); return; }
+  try {
+    const r = await fetch(SERVER_URL + '/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const d = await r.json();
+    if (!r.ok) { setAuthError(d.error || 'Login failed'); return; }
+    onAuthSuccess(d);
+  } catch (e) { setAuthError('Cannot connect to server — is it running?'); }
+}
+
+async function doRegister() {
+  const u = document.getElementById('regUser').value.trim();
+  const p = document.getElementById('regPass').value;
+  const p2 = document.getElementById('regPass2').value;
+  if (!u || !p || !p2) { setAuthError('Fill in all fields'); return; }
+  if (p !== p2) { setAuthError('Passwords do not match'); return; }
+  try {
+    const r = await fetch(SERVER_URL + '/auth/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const d = await r.json();
+    if (!r.ok) { setAuthError(d.error || 'Registration failed'); return; }
+    onAuthSuccess(d);
+  } catch (e) { setAuthError('Cannot connect to server — is it running?'); }
+}
+
+function onAuthSuccess(data) {
+  authToken = data.token;
+  currentUser = { username: data.username, balance: data.balance };
+  localStorage.setItem('strix_token', authToken);
+  document.getElementById('authOverlay').classList.add('hidden');
+  document.getElementById('usernameDisplay').textContent = data.username;
+  document.getElementById('balanceDisplay').textContent = fmtBalance(data.balance);
+  socket.emit('auth', authToken);
+  socket.emit('get_leaderboard');
+}
+
+function logOut() {
+  localStorage.removeItem('strix_token');
+  location.reload();
+}
+
+// ── SOCKET ───────────────────────────────────────────────
+const socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+
+socket.on('connect', () => {
+  if (authToken) socket.emit('auth', authToken);
+});
+
+socket.on('auth_ok', (data) => {
+  currentUser = data;
+  document.getElementById('authOverlay').classList.add('hidden');
+  document.getElementById('usernameDisplay').textContent = data.username;
+  document.getElementById('balanceDisplay').textContent = fmtBalance(data.balance);
+  socket.emit('get_leaderboard');
+});
+
+socket.on('auth_error', (msg) => {
+  localStorage.removeItem('strix_token');
+  authToken = null;
+  document.getElementById('authOverlay').classList.remove('hidden');
+  setAuthError(msg);
+});
+
+socket.on('lobby_state', renderLobby);
+socket.on('lobby_update', renderLobby);
+
+socket.on('global_stats', (s) => {
+  document.getElementById('statWagered').textContent = '$' + fmtNum(s.totalWagered);
+  document.getElementById('statRaces').textContent = fmtNum(s.totalRaces);
+  document.getElementById('statBigWin').textContent = '$' + fmtNum(s.biggestWin);
+  document.getElementById('statBigWinner').textContent = s.biggestWinner ? 'By ' + s.biggestWinner : '—';
+  document.getElementById('statUsers').textContent = (s.totalUsers || 0) + ' registered players';
+});
+
+socket.on('active_count', (n) => {
+  document.getElementById('statActive').textContent = n;
+});
+
+socket.on('leaderboard', renderLeaderboard);
+socket.on('live_feed', renderFeed);
+
+// ── LOBBY ─────────────────────────────────────────────────
+const stateLabel = {
+  open: '<span class="lobby-card-state state-badge-open">● Open</span>',
+  countdown: '<span class="lobby-card-state state-badge-countdown">⏱ Starting</span>',
+  racing: '<span class="lobby-card-state state-badge-racing"> Racing</span>',
+  results: '<span class="lobby-card-state state-badge-results">✓ Results</span>'
+};
+
+function renderLobby(rooms) {
+  const grid = document.getElementById('lobbyGrid');
+  grid.innerHTML = '';
+  rooms.forEach(r => {
+    const div = document.createElement('a');
+    div.href = 'index.html?race=' + r.id;
+    div.className = 'lobby-card state-' + r.state;
+    div.innerHTML = `
+      <div class="lobby-card-id">Race Room ${r.id}</div>
+      <div class="lobby-card-type">${r.raceType.toUpperCase()}</div>
+      <div class="lobby-card-label">${r.raceLabel}</div>
+      ${stateLabel[r.state] || ''}
+      <div class="lobby-card-players">👥 ${r.playerCount} player${r.playerCount !== 1 ? 's' : ''}</div>
+      ${r.state === 'open' ? '<span class="lobby-play-btn">Join Race →</span>' : ''}
+    `;
+    grid.appendChild(div);
+  });
+}
+
+// ── LEADERBOARD ───────────────────────────────────────────
+const rankCls = ['rank-1', 'rank-2', 'rank-3'];
+function renderLeaderboard(players) {
+  const tbody = document.getElementById('lbBody');
+  tbody.innerHTML = '';
+  players.slice(0, 10).forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="rank-num ${rankCls[i] || ''}">${i + 1}</td>
+      <td class="player-name">${esc(p.username)}</td>
+      <td style="font-family:'Orbitron',monospace;font-size:12px;color:var(--lime-bright)">$${fmtBalance(p.balance)}</td>
+      <td style="color:var(--text-dim);font-size:11px">${p.winRate}%</td>
+      <td class="payout-val">$${fmtNum(p.biggestWin)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Refresh leaderboard every 30 seconds
+setInterval(() => socket.emit('get_leaderboard'), 30000);
+
+// ── LIVE FEED ─────────────────────────────────────────────
+function renderFeed(results) {
+  const feed = document.getElementById('activityFeed');
+  feed.innerHTML = '';
+  const colors = { sprint: 'var(--lime)', distance: 'var(--cyan)', derby: 'var(--amber)' };
+  results.slice(0, 6).forEach(r => {
+    const wins = r.payouts.filter(p => p.win);
+    const div = document.createElement('div');
+    div.className = 'activity-item';
+    const ago = timeAgo(r.timestamp);
+    const winText = wins.length > 0
+      ? wins.map(p => `<strong>${esc(p.username)}</strong> +$${fmtNum(p.netProfit)}`).join(', ')
+      : 'No winners this race';
+    div.innerHTML = `
+      <div class="activity-dot" style="background:${colors[r.raceType] || 'var(--lime)'};box-shadow:0 0 6px ${colors[r.raceType] || 'var(--lime)'}"></div>
+      <div>
+        <div class="activity-text">Room ${r.raceId} — ${r.raceLabel || r.raceType} | 🏇 ${r.winner} won · ${winText}</div>
+        <div class="activity-time">${ago}</div>
+      </div>
+    `;
+    feed.appendChild(div);
+  });
+}
+
+// ── TICKER ────────────────────────────────────────────────
+const tickerHorses = [
+  {n:'Horse 3',o:'2.1x',up:true},{n:'Horse 7',o:'3.4x',up:false},
+  {n:'Horse 11',o:'5.0x',up:true},{n:'Horse 1',o:'4.2x',up:false},
+  {n:'Horse 9',o:'6.5x',up:true},{n:'Horse 5',o:'1.8x',up:false},
+  {n:'Horse 14',o:'3.0x',up:true},{n:'Horse 2',o:'2.7x',up:false},
+];
+const track = document.getElementById('tickerTrack');
+[...tickerHorses,...tickerHorses].forEach(h => {
+  const s = document.createElement('span');
+  s.className = 'ticker-item';
+  s.innerHTML = `<span class="ticker-horse">${h.n}</span><span class="ticker-odds ${h.up?'ticker-up':'ticker-down'}">${h.up?'▲':'▼'} ${h.o}</span>`;
+  track.appendChild(s);
+});
+
+// ── UTILS ─────────────────────────────────────────────────
+function fmtBalance(n) { return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtNum(n) { return Math.round(n).toLocaleString('en-US'); }
+function esc(s) { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  return Math.floor(s/3600) + 'h ago';
+}
+
+// Check existing auth on load
+if (!authToken) {
+  document.getElementById('authOverlay').classList.remove('hidden');
+} else {
+  // Will be confirmed/rejected by socket auth_ok/auth_error
+  document.getElementById('authOverlay').classList.add('hidden');
+}
+
+// Enter key support for auth forms
+document.getElementById('loginPass').addEventListener('keyup', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keyup', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('regPass2').addEventListener('keyup', e => { if (e.key === 'Enter') doRegister(); });
+</script>
+</body>
+</html>
