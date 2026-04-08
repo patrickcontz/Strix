@@ -290,7 +290,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
   <div class="toast-amount"   id="toastAmount"></div>
   <div class="toast-meta"     id="toastMeta"></div>
   <div class="toast-btns">
-    <a href="index.html" class="toast-btn-primary" id="toastPlayBtn">Race Again →</a>
+    <a href="derby.html" class="toast-btn-primary" id="toastPlayBtn">Race Again →</a>
     <button class="toast-btn-dismiss" onclick="dismissToast()">Dismiss</button>
   </div>
 </div>
@@ -306,7 +306,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
     </div>
     <div class="topbar-nav">
       <a class="nav-link active" href="home.html">Home</a>
-      <a class="nav-link" href="index.html">Derby</a>
+      <a class="nav-link" href="derby.html">Derby</a>
       <a class="nav-link" href="#leaderboard-section">Leaderboard</a>
     </div>
     <div class="topbar-right">
@@ -336,7 +336,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
       <h1 class="hero-title">Race.<br><span>Bet.</span><br>Win Big.</h1>
       <p class="hero-subtitle">Five concurrent race rooms, server-side physics, real persistent leaderboards. Sprint, Distance, and Grand Derby running 24/7.</p>
       <div class="hero-cta-row">
-        <a href="index.html" class="btn-primary">Play Derby Now</a>
+        <a href="derby.html" class="btn-primary">Play Derby Now</a>
         <a href="#lobby-section" class="btn-ghost">View Lobby</a>
       </div>
     </div>
@@ -361,7 +361,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
     <div class="divider-line"></div><div class="divider-label">Minigames</div><div class="divider-line"></div>
   </div>
   <div class="games-grid">
-    <a href="index.html" class="game-card featured">
+    <a href="derby.html" class="game-card featured">
       <div class="game-thumb game-thumb-derby">
         <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
           <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:4px;color:var(--lime);opacity:0.8;">GRAND DERBY</div>
@@ -390,7 +390,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
   <div class="section-divider"><div class="divider-line"></div><div class="divider-label">Promotions</div><div class="divider-line"></div></div>
   <div class="promos-grid">
     <div class="promo-card promo-a"><div class="promo-eyebrow">Welcome Bonus</div><div class="promo-title">$1,000 Free</div><div class="promo-desc">Every new account starts with $1,000 in virtual chips. No deposit, no catch.</div><a href="#" class="promo-link" onclick="switchTab('register');return false;">Get Started →</a></div>
-    <div class="promo-card promo-b"><div class="promo-eyebrow">Multiplayer</div><div class="promo-title">5 Live Rooms</div><div class="promo-desc">Race against real players in 5 concurrent rooms. Solo or with friends — rooms fill up fast.</div><a href="index.html" class="promo-link">Join Race →</a></div>
+    <div class="promo-card promo-b"><div class="promo-eyebrow">Multiplayer</div><div class="promo-title">5 Live Rooms</div><div class="promo-desc">Race against real players in 5 concurrent rooms. Solo or with friends — rooms fill up fast.</div><a href="derby.html" class="promo-link">Join Race →</a></div>
     <div class="promo-card promo-c"><div class="promo-eyebrow">Stats</div><div class="promo-title">Real Tracking</div><div class="promo-desc">Every race, every bet, every win tracked server-side. Your balance never resets even if the server restarts.</div><a href="#leaderboard-section" class="promo-link">See Leaders →</a></div>
   </div>
 
@@ -559,7 +559,7 @@ function renderLobby(rooms) {
   grid.innerHTML = '';
   rooms.forEach(r => {
     const div = document.createElement('a');
-    div.href      = 'index.html?race='+r.id;
+    div.href      = 'derby.html?race='+r.id;
     div.className = 'lobby-card state-'+r.state;
     div.innerHTML = `
       <div class="lobby-card-id">Race Room ${r.id}</div>
