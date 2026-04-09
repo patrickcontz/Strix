@@ -1,0 +1,22 @@
+{
+  "users": [
+    {
+      "id": "c1a9b3d2-7f4e-4a91-9c2e-6f8b2d3e5a11",
+      "username": "patrickcontz",
+      "password": "$2b$10$wH8K7G6QJ0rH9VvGz1GQ7e6F6Q2lCkG7qR1l8QmF3YxVZzW8Kp6bK",
+      "balance": 2000.0,
+      "createdAt": "2026-04-09T12:00:00.000Z",
+      "lastSeen": "2026-04-09T12:00:00.000Z",
+      "stats": {
+        "racesPlayed": 0,
+        "racesWon": 0,
+        "totalWagered": 0,
+        "totalWon": 0,
+        "biggestWin": 0,
+        "biggestLoss": 0,
+        "winStreak": 0,
+        "currentStreak": 0
+      }
+    }
+  ]
+}
