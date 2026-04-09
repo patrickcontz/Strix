@@ -1,1 +1,40 @@
-
+{
+  "users": [
+    {
+      "id": "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+      "username": "patrickcontz",
+      "password": "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy",
+      "balance": 2000.00,
+      "createdAt": "2026-04-09T10:00:00.000Z",
+      "lastSeen": "2026-04-09T10:00:00.000Z",
+      "stats": {
+        "racesPlayed": 0,
+        "racesWon": 0,
+        "totalWagered": 0,
+        "totalWon": 0,
+        "biggestWin": 0,
+        "biggestLoss": 0,
+        "winStreak": 0,
+        "currentStreak": 0
+      }
+    },
+    {
+      "id": "f7e8d9c0-b1a2-4567-8901-23456789fedc",
+      "username": "drinkal",
+      "password": "$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa",
+      "balance": 2000.00,
+      "createdAt": "2026-04-09T10:00:00.000Z",
+      "lastSeen": "2026-04-09T10:00:00.000Z",
+      "stats": {
+        "racesPlayed": 0,
+        "racesWon": 0,
+        "totalWagered": 0,
+        "totalWon": 0,
+        "biggestWin": 0,
+        "biggestLoss": 0,
+        "winStreak": 0,
+        "currentStreak": 0
+      }
+    }
+  ]
+}
