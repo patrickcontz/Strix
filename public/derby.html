@@ -784,6 +784,8 @@ function renderTick(tNorm) {
     mk.style.left = sx+'%'; mk.style.top = (h.lane*100-12)+'%';
   });
 
+  updateLeaderboard(raceState);
+
   // Finish line uses same camera — scrolls with background perfectly
   if (raceState.finishX) {
     document.getElementById('finishLine').style.left = ((raceState.finishX-camera)*100)+'%';
