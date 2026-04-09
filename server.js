@@ -205,7 +205,7 @@ const MAX_RACES = 5;
 const BETTING_WINDOW = 60000;  // 60 seconds for multi-player
 const CANCEL_WINDOW = 5000;    // 5 second cancel period
 const RESULTS_SHOW = 10000;    // show results for 10s before reset
-const TICK_INTERVAL = 50;      // ms between server ticks (20fps)
+const TICK_INTERVAL = 14;      // ms between server ticks (20fps)
 
 const races = {};
 const recentResults = []; // global feed
