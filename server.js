@@ -1,76 +1,70 @@
 const express = require('express');
-const http    = require('http');
+const http = require('http');
 const { Server } = require('socket.io');
-const bcrypt  = require('bcryptjs');
-const jwt     = require('jsonwebtoken');
-const fs      = require('fs');
-const path    = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const cors    = require('cors');
+const cors = require('cors');
 
-const app    = express();
+const app = express();
 const server = http.createServer(app);
 
-const JWT_SECRET   = process.env.JWT_SECRET   || 'strix-super-secret-2026-change-in-prod';
-const PORT         = process.env.PORT         || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'strix-super-secret-2026-change-in-prod';
+const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || '*';
 
 const io = new Server(server, {
-  cors: { origin: FRONTEND_URL, methods: ['GET','POST'] },
-  pingTimeout: 30000, pingInterval: 10000
+  cors: { origin: FRONTEND_URL, methods: ['GET', 'POST'] },
+  pingTimeout: 30000,
+  pingInterval: 10000
 });
 
 app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── DB ────────────────────────────────────────────────────────
-const DATA_DIR   = path.join(__dirname, 'data');
-const DB_PATH    = path.join(DATA_DIR, 'users.json');
-const STATS_PATH = path.join(DATA_DIR, 'site_stats.json');
+// ── DATABASE (JSON file) ──────────────────────────────────────
+const DB_PATH = path.join(__dirname, 'data', 'users.json');
+const STATS_PATH = path.join(__dirname, 'data', 'site_stats.json');
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(DB_PATH))
-    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [] }, null, 2));
-  if (!fs.existsSync(STATS_PATH))
-    fs.writeFileSync(STATS_PATH, JSON.stringify(
-      { totalWagered: 0, totalRaces: 0, biggestWin: 0, biggestWinner: '' }, null, 2));
-}
-ensureDataDir();
-
-function readDB()  {
-  try { return JSON.parse(fs.readFileSync(DB_PATH,    'utf8')); }
-  catch(e) { return { users: [] }; }
-}
-function readStats() {
-  try { return JSON.parse(fs.readFileSync(STATS_PATH, 'utf8')); }
-  catch(e) { return { totalWagered:0, totalRaces:0, biggestWin:0, biggestWinner:'' }; }
+function readDB() {
+  try {
+    if (!fs.existsSync(DB_PATH)) {
+      fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+      fs.writeFileSync(DB_PATH, JSON.stringify({ users: [] }, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  } catch (e) { return { users: [] }; }
 }
 
-// Atomic write — write temp then rename so a crash never corrupts the file
 function writeDB(data) {
-  const tmp = DB_PATH + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, DB_PATH);
-}
-function writeStats(data) {
-  const tmp = STATS_PATH + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, STATS_PATH);
+  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
-// ── AUTH ──────────────────────────────────────────────────────
+function readStats() {
+  try {
+    if (!fs.existsSync(STATS_PATH)) {
+      const init = { totalWagered: 0, totalRaces: 0, activePlayers: 0, biggestWin: 0, biggestWinner: '' };
+      fs.writeFileSync(STATS_PATH, JSON.stringify(init, null, 2));
+      return init;
+    }
+    return JSON.parse(fs.readFileSync(STATS_PATH, 'utf8'));
+  } catch (e) { return { totalWagered: 0, totalRaces: 0, activePlayers: 0, biggestWin: 0, biggestWinner: '' }; }
+}
+
+function writeStats(data) {
+  fs.writeFileSync(STATS_PATH, JSON.stringify(data, null, 2));
+}
+
+// ── AUTH ROUTES ───────────────────────────────────────────────
 app.post('/auth/register', async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password)
-    return res.status(400).json({ error: 'Username and password required' });
-  if (username.length < 3 || username.length > 20)
-    return res.status(400).json({ error: 'Username must be 3–20 characters' });
-  if (!/^[a-zA-Z0-9_]+$/.test(username))
-    return res.status(400).json({ error: 'Username: letters, numbers, underscores only' });
-  if (password.length < 6)
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  if (username.length < 3 || username.length > 20) return res.status(400).json({ error: 'Username must be 3–20 characters' });
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) return res.status(400).json({ error: 'Username: letters, numbers, underscores only' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
   const db = readDB();
   if (db.users.find(u => u.username.toLowerCase() === username.toLowerCase()))
@@ -81,13 +75,12 @@ app.post('/auth/register', async (req, res) => {
     id: uuidv4(), username, password: hash,
     balance: 1000.00,
     createdAt: new Date().toISOString(),
-    lastSeen:  new Date().toISOString(),
-    pendingResult: null,       // stored here when player is offline at race end
+    lastSeen: new Date().toISOString(),
     stats: {
-      racesPlayed:0, racesWon:0,
-      totalWagered:0, totalWon:0,
-      biggestWin:0, biggestLoss:0,
-      winStreak:0, currentStreak:0
+      racesPlayed: 0, racesWon: 0,
+      totalWagered: 0, totalWon: 0,
+      biggestWin: 0, biggestLoss: 0,
+      winStreak: 0, currentStreak: 0
     }
   };
   db.users.push(user);
@@ -99,7 +92,7 @@ app.post('/auth/register', async (req, res) => {
 
 app.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
-  const db   = readDB();
+  const db = readDB();
   const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
   if (!user) return res.status(400).json({ error: 'Invalid username or password' });
 
@@ -114,159 +107,141 @@ app.post('/auth/login', async (req, res) => {
 });
 
 app.get('/api/leaderboard', (req, res) => {
-  const db  = readDB();
+  const db = readDB();
   const top = [...db.users]
-    .sort((a,b) => b.balance - a.balance).slice(0,20)
+    .sort((a, b) => b.balance - a.balance)
+    .slice(0, 20)
     .map(u => ({
-      username:    u.username, balance: u.balance,
+      username: u.username, balance: u.balance,
       racesPlayed: u.stats.racesPlayed, racesWon: u.stats.racesWon,
-      biggestWin:  u.stats.biggestWin,  totalWagered: u.stats.totalWagered,
-      winRate:     u.stats.racesPlayed > 0
-        ? ((u.stats.racesWon / u.stats.racesPlayed)*100).toFixed(1) : '0.0'
+      biggestWin: u.stats.biggestWin, totalWagered: u.stats.totalWagered,
+      winRate: u.stats.racesPlayed > 0 ? ((u.stats.racesWon / u.stats.racesPlayed) * 100).toFixed(1) : '0.0'
     }));
   res.json(top);
 });
 
 app.get('/api/stats', (req, res) => {
-  const s  = readStats();
+  const s = readStats();
   const db = readDB();
   res.json({ ...s, totalUsers: db.users.length });
 });
 
 function verifyToken(token) {
   try { return jwt.verify(token, JWT_SECRET); }
-  catch(e) { return null; }
+  catch (e) { return null; }
 }
 
-// ══════════════════════════════════════════════════════════════
-//  PHYSICS — exact copy of original single-player client script
-// ══════════════════════════════════════════════════════════════
-const VBASE             = 0.0020;
-const AI_MIN = 0.002,   AI_MAX    = 0.008;
-const PHI_MAX           = Math.PI / 12;
-const BI_MIN = -0.001,  BI_MAX    = 0.003;
+// ── RACE PHYSICS ──────────────────────────────────────────────
+const VBASE = 0.0020;
+const AI_MIN = 0.002, AI_MAX = 0.008;
+const PHI_MAX = Math.PI / 12;
+const BI_MIN = -0.001, BI_MAX = 0.003;
 const ALPHA_MIN = 0.008, ALPHA_MAX = 0.015;
 const BETA_MIN = 0.00001, BETA_MAX = 0.00003;
-const TSPRINT = 0.75,   SIGMA     = 0.6;
-const PACK_TIGHTNESS    = 0.09;
-const PACK_END_FRACTION = 0.4;
-const RANDOMNESS        = 0.005;
-
-// Same distances as the original working single-player client
-const RACE_DISTS  = { sprint: 4, distance: 14.0, derby: 27.5 };
+const TSPRINT = 0.75, SIGMA = 0.6;
+const PACK_TIGHTNESS = 0.09, PACK_END_FRACTION = 0.4;
+const RANDOMNESS = 0.005;
+const RACE_DISTS = { sprint: 2, distance: 14.0, derby: 27.5 };
 const RACE_LABELS = { sprint: '400m Sprint', distance: '1600m Distance', derby: '2400m Grand Derby' };
 
-// 16 ms tick ≈ 62 fps ≈ requestAnimationFrame — so race lengths are identical
-// to the single-player version the user already experienced and liked.
-const TICK_INTERVAL = 16;
-
 const betTypeOddsBase = {
-  win:     { base:1.5, spread:5.0 },
-  top3:    { base:1.1, spread:2.2 },
-  fastest: { base:1.8, spread:6.5 },
-  draw:    { base:1.2, spread:3.0 }
+  win:     { base: 1.5, spread: 5.0 },
+  top3:    { base: 1.1, spread: 2.2 },
+  fastest: { base: 1.8, spread: 6.5 },
+  draw:    { base: 1.2, spread: 3.0 }
 };
 
 function rng(min, max) { return min + Math.random() * (max - min); }
 
 function createHorse(index, total) {
   return {
-    x: 0.1, lane: (index+1)/(total+1),
-    V0:    VBASE*(1+rng(-0.01,0.01)),
-    ai:    rng(AI_MIN,   AI_MAX),
-    phi:   rng(0,        PHI_MAX),
-    bi:    rng(BI_MIN,   BI_MAX),
-    alpha: rng(ALPHA_MIN,ALPHA_MAX),
-    beta:  rng(BETA_MIN, BETA_MAX),
+    x: 0.1, lane: (index + 1) / (total + 1),
+    V0: VBASE * (1 + rng(-0.01, 0.01)),
+    ai: rng(AI_MIN, AI_MAX), phi: rng(0, PHI_MAX),
+    bi: rng(BI_MIN, BI_MAX), alpha: rng(ALPHA_MIN, ALPHA_MAX),
+    beta: rng(BETA_MIN, BETA_MAX),
     tsprint: TSPRINT, sigma: SIGMA,
-    speed:0, maxSpeed:0,
-    oddsWin:1, oddsTop3:1, oddsFastest:1, oddsDraw:1
+    speed: 0, maxSpeed: 0,
+    oddsWin: 1, oddsTop3: 1, oddsFastest: 1, oddsDraw: 1
   };
 }
 
 function computeSpeed(h, tNorm) {
   const si = h.ai * Math.sin(Math.PI * tNorm + h.phi) + h.bi * tNorm;
   const fs = 1 - h.alpha * tNorm;
-  const fe = 1 + h.beta * Math.exp(-Math.pow(tNorm - h.tsprint, 2) / (2*h.sigma*h.sigma));
-  return h.V0 * (1+si) * fs * fe;
+  const fe = 1 + h.beta * Math.exp(-Math.pow(tNorm - h.tsprint, 2) / (2 * h.sigma * h.sigma));
+  return h.V0 * (1 + si) * fs * fe;
 }
 
 function calculateOdds(horses) {
   const strengths = horses.map(h => {
-    const speed    = h.V0*100000;
-    const fatigue  = (h.alpha-ALPHA_MIN)/(ALPHA_MAX-ALPHA_MIN);
-    const boost    = (h.beta -BETA_MIN) /(BETA_MAX -BETA_MIN);
-    const tactical = (h.bi   -BI_MIN)   /(BI_MAX   -BI_MIN);
-    return speed*0.4 + boost*100*0.2 + tactical*100*0.2 + (1-fatigue)*100*0.2;
+    const speed = h.V0 * 100000;
+    const fatigue = (h.alpha - ALPHA_MIN) / (ALPHA_MAX - ALPHA_MIN);
+    const boost = (h.beta - BETA_MIN) / (BETA_MAX - BETA_MIN);
+    const tactical = (h.bi - BI_MIN) / (BI_MAX - BI_MIN);
+    return speed * 0.4 + boost * 100 * 0.2 + tactical * 100 * 0.2 + (1 - fatigue) * 100 * 0.2;
   });
   const speedScores = horses.map(h => {
-    const speed = h.V0*100000;
-    const boost = (h.beta-BETA_MIN)/(BETA_MAX-BETA_MIN);
-    return speed*0.7 + boost*100*0.3;
+    const speed = h.V0 * 100000; const boost = (h.beta - BETA_MIN) / (BETA_MAX - BETA_MIN);
+    return speed * 0.7 + boost * 100 * 0.3;
   });
   function computeSet(scores, cfg) {
-    const max = Math.max(...scores), min = Math.min(...scores), range = max-min||1;
-    return scores.map(s => parseFloat(Math.max(
-      1.05, cfg.base+(1-(s-min)/range)*cfg.spread+(Math.random()-0.5)*0.3
-    ).toFixed(2)));
+    const max = Math.max(...scores), min = Math.min(...scores), range = max - min || 1;
+    return scores.map(s => parseFloat(Math.max(1.05, cfg.base + (1 - (s - min) / range) * cfg.spread + (Math.random() - 0.5) * 0.3).toFixed(2)));
   }
-  const wO  = computeSet(strengths,   betTypeOddsBase.win);
-  const t3O = computeSet(strengths,   betTypeOddsBase.top3);
-  const fO  = computeSet(speedScores, betTypeOddsBase.fastest);
-  const dO  = computeSet(strengths,   betTypeOddsBase.draw);
-  horses.forEach((h,i) => {
-    h.oddsWin=wO[i]; h.oddsTop3=t3O[i]; h.oddsFastest=fO[i]; h.oddsDraw=dO[i];
-  });
+  const wO = computeSet(strengths, betTypeOddsBase.win);
+  const t3O = computeSet(strengths, betTypeOddsBase.top3);
+  const fO = computeSet(speedScores, betTypeOddsBase.fastest);
+  const dO = computeSet(strengths, betTypeOddsBase.draw);
+  horses.forEach((h, i) => { h.oddsWin = wO[i]; h.oddsTop3 = t3O[i]; h.oddsFastest = fO[i]; h.oddsDraw = dO[i]; });
 }
 
 function getOdds(h, type) {
-  return {win:h.oddsWin,top3:h.oddsTop3,fastest:h.oddsFastest,draw:h.oddsDraw}[type]||h.oddsWin;
+  return { win: h.oddsWin, top3: h.oddsTop3, fastest: h.oddsFastest, draw: h.oddsDraw }[type] || h.oddsWin;
 }
 
 // ── RACE ROOMS ────────────────────────────────────────────────
-const MAX_RACES      = 5;
-const BETTING_WINDOW = 60000;  // 60 s multi-player betting window
-const CANCEL_WINDOW  = 5000;   // 5 s cancel period
-const RESULTS_SHOW   = 10000;  // results stay 10 s then reset
+const MAX_RACES = 5;
+const BETTING_WINDOW = 60000;  // 60 seconds for multi-player
+const CANCEL_WINDOW = 5000;    // 5 second cancel period
+const RESULTS_SHOW = 10000;    // show results for 10s before reset
+const TICK_INTERVAL = 50;      // ms between server ticks (20fps)
 
-const races        = {};
-const recentResults = [];
+const races = {};
+const recentResults = []; // global feed
 
 function createRaceRoom(id) {
-  const types    = ['sprint','distance','derby'];
-  const raceType = types[Math.floor(Math.random()*types.length)];
-  const count    = raceType === 'sprint' ? 6 : 14;
-  const horses   = Array.from({length:count},(_,i)=>createHorse(i,count));
+  const types = ['sprint', 'distance', 'derby'];
+  const raceType = types[Math.floor(Math.random() * types.length)];
+  const count = raceType === 'sprint' ? 6 : 14;
+  const horses = Array.from({ length: count }, (_, i) => createHorse(i, count));
   calculateOdds(horses);
   const raceDist = RACE_DISTS[raceType];
   return {
-    id, raceType, state:'open',
-    horses, raceDist,
+    id, raceType, state: 'open', horses, raceDist,
     finishX: 0.1 + raceDist,
-    players: {},              // socketId → player data
-    betTimer:null, cancelTimer:null, tickTimer:null, resultTimer:null, _bettingTick:null,
-    startTime:null, raceCount:0,
-    bettingStartedAt:null, bettingTimeLeft:0
+    players: {},       // socketId -> player data
+    betTimer: null, cancelTimer: null, tickTimer: null, resultTimer: null,
+    startTime: null, raceCount: 0, bettingStartedAt: null,
+    bettingTimeLeft: 0
   };
 }
 
 for (let i = 1; i <= MAX_RACES; i++) races[i] = createRaceRoom(i);
 
-// ── Helpers ───────────────────────────────────────────────────
 function publicRace(race) {
   return {
-    id: race.id, state: race.state,
-    raceType: race.raceType, raceLabel: RACE_LABELS[race.raceType],
-    horses: race.horses.map((h,i) => ({
-      index:i, x:h.x, lane:h.lane, speed:h.speed, maxSpeed:h.maxSpeed,
-      oddsWin:h.oddsWin, oddsTop3:h.oddsTop3, oddsFastest:h.oddsFastest, oddsDraw:h.oddsDraw,
-      V0:h.V0, ai:h.ai, phi:h.phi, bi:h.bi, alpha:h.alpha, beta:h.beta,
-      tsprint:h.tsprint, sigma:h.sigma
+    id: race.id, state: race.state, raceType: race.raceType,
+    raceLabel: RACE_LABELS[race.raceType],
+    horses: race.horses.map((h, i) => ({
+      index: i, x: h.x, lane: h.lane, speed: h.speed, maxSpeed: h.maxSpeed,
+      oddsWin: h.oddsWin, oddsTop3: h.oddsTop3, oddsFastest: h.oddsFastest, oddsDraw: h.oddsDraw,
+      V0: h.V0, ai: h.ai, phi: h.phi, bi: h.bi, alpha: h.alpha, beta: h.beta,
+      tsprint: h.tsprint, sigma: h.sigma
     })),
     players: Object.values(race.players).map(p => ({
-      username:p.username, hasBet:p.hasBet,
-      betHorse: p.hasBet ? p.betHorse : null,
-      betType:  p.hasBet ? p.betType  : null
+      username: p.username, hasBet: p.bet > 0,
+      betHorse: p.hasBet ? p.betHorse : null, betType: p.hasBet ? p.betType : null
     })),
     playerCount: Object.keys(race.players).length,
     finishX: race.finishX, raceDist: race.raceDist,
@@ -276,90 +251,102 @@ function publicRace(race) {
 
 function lobbyItem(race) {
   return {
-    id:race.id, state:race.state,
-    raceType:race.raceType, raceLabel:RACE_LABELS[race.raceType],
+    id: race.id, state: race.state, raceType: race.raceType,
+    raceLabel: RACE_LABELS[race.raceType],
     playerCount: Object.keys(race.players).length
   };
 }
 
-function broadcastLobby() { io.emit('lobby_update', Object.values(races).map(lobbyItem)); }
-function broadcastRace(race) { io.to('race_'+race.id).emit('race_state', publicRace(race)); }
+function broadcastLobby() {
+  io.emit('lobby_update', Object.values(races).map(lobbyItem));
+}
+
+function broadcastRace(race) {
+  io.to('race_' + race.id).emit('race_state', publicRace(race));
+}
 
 function clearTimers(race) {
-  if (race.betTimer)     { clearTimeout(race.betTimer);      race.betTimer     = null; }
-  if (race.cancelTimer)  { clearTimeout(race.cancelTimer);   race.cancelTimer  = null; }
-  if (race.tickTimer)    { clearInterval(race.tickTimer);    race.tickTimer    = null; }
-  if (race.resultTimer)  { clearTimeout(race.resultTimer);   race.resultTimer  = null; }
-  if (race._bettingTick) { clearInterval(race._bettingTick); race._bettingTick = null; }
+  if (race.betTimer)    { clearTimeout(race.betTimer);    race.betTimer = null; }
+  if (race.cancelTimer) { clearTimeout(race.cancelTimer); race.cancelTimer = null; }
+  if (race.tickTimer)   { clearInterval(race.tickTimer);  race.tickTimer = null; }
+  if (race.resultTimer) { clearTimeout(race.resultTimer); race.resultTimer = null; }
 }
 
 function resetRace(race) {
   clearTimers(race);
-
-  // Refund bets that never ran (only open/countdown states have unstarted bets)
+  // Refund any open bets
   const db = readDB();
   let changed = false;
   for (const p of Object.values(race.players)) {
-    if (p.hasBet && (race.state === 'open' || race.state === 'countdown')) {
+    if (p.bet > 0 && (race.state === 'open' || race.state === 'countdown')) {
       const u = db.users.find(u => u.id === p.userId);
-      if (u) { u.balance = parseFloat((u.balance + p.bet).toFixed(2)); changed = true; }
+      if (u) { u.balance += p.bet; changed = true; }
     }
   }
   if (changed) writeDB(db);
 
-  const types    = ['sprint','distance','derby'];
-  const raceType = types[Math.floor(Math.random()*types.length)];
-  const count    = raceType === 'sprint' ? 6 : 14;
-  const horses   = Array.from({length:count},(_,i)=>createHorse(i,count));
+  const types = ['sprint', 'distance', 'derby'];
+  const raceType = types[Math.floor(Math.random() * types.length)];
+  const count = raceType === 'sprint' ? 6 : 14;
+  const horses = Array.from({ length: count }, (_, i) => createHorse(i, count));
   calculateOdds(horses);
 
   race.raceType = raceType;
-  race.horses   = horses;
+  race.horses = horses;
   race.raceDist = RACE_DISTS[raceType];
-  race.finishX  = 0.1 + race.raceDist;
-  race.state    = 'open';
-  race.players  = {};
+  race.finishX = 0.1 + race.raceDist;
+  race.state = 'open';
+  race.players = {};
   race.startTime = null;
   race.bettingStartedAt = null;
-  race.bettingTimeLeft  = 0;
+  race.bettingTimeLeft = 0;
 
-  io.to('race_'+race.id).emit('race_reset', publicRace(race));
+  io.to('race_' + race.id).emit('race_reset', publicRace(race));
   broadcastLobby();
 }
 
 function startBettingTimer(race) {
-  if (race.betTimer) return;
-  race.bettingStartedAt = Date.now();
-  race.bettingTimeLeft  = BETTING_WINDOW;
-  io.to('race_'+race.id).emit('betting_timer', { seconds: 60 });
+  if (race.betTimer) return; // already running
+  const playerCount = Object.keys(race.players).length;
+  if (playerCount < 2) return; // single player: immediate on bet
 
-  race._bettingTick = setInterval(() => {
-    race.bettingTimeLeft = Math.max(0, BETTING_WINDOW-(Date.now()-race.bettingStartedAt));
-    io.to('race_'+race.id).emit('betting_tick', { ms: race.bettingTimeLeft });
+  race.bettingStartedAt = Date.now();
+  race.bettingTimeLeft = BETTING_WINDOW;
+
+  io.to('race_' + race.id).emit('betting_timer', { seconds: 60 });
+
+  // Tick down timer every second
+  const timerTick = setInterval(() => {
+    race.bettingTimeLeft = Math.max(0, BETTING_WINDOW - (Date.now() - race.bettingStartedAt));
+    io.to('race_' + race.id).emit('betting_tick', { ms: race.bettingTimeLeft });
   }, 1000);
 
   race.betTimer = setTimeout(() => {
-    if (race._bettingTick) { clearInterval(race._bettingTick); race._bettingTick = null; }
+    clearInterval(timerTick);
     race.betTimer = null;
-    const bettors = Object.values(race.players).filter(p => p.hasBet);
+    const bettors = Object.values(race.players).filter(p => p.bet > 0);
     if (bettors.length === 0) { resetRace(race); return; }
     startCountdown(race);
   }, BETTING_WINDOW);
+
+  // Store tick interval ref for cleanup
+  race._bettingTick = timerTick;
 }
 
 function startCountdown(race) {
   if (race._bettingTick) { clearInterval(race._bettingTick); race._bettingTick = null; }
-  if (race.betTimer)     { clearTimeout(race.betTimer);      race.betTimer      = null; }
-  race.state           = 'countdown';
+  if (race.betTimer) { clearTimeout(race.betTimer); race.betTimer = null; }
+  race.state = 'countdown';
   race.bettingTimeLeft = 0;
   broadcastRace(race);
   broadcastLobby();
-  io.to('race_'+race.id).emit('countdown_start', { seconds: 5 });
+  io.to('race_' + race.id).emit('countdown_start', { seconds: 5 });
 
+  // Tick down cancel window
   let remaining = 5;
   const cdTick = setInterval(() => {
     remaining--;
-    io.to('race_'+race.id).emit('countdown_tick', { seconds: remaining });
+    io.to('race_' + race.id).emit('countdown_tick', { seconds: remaining });
     if (remaining <= 0) clearInterval(cdTick);
   }, 1000);
 
@@ -371,49 +358,47 @@ function startCountdown(race) {
 }
 
 function beginRace(race) {
-  // Drop spectators (no bet placed)
+  // Lock all non-bettors out: remove players with no bet
   for (const [sid, p] of Object.entries(race.players)) {
-    if (!p.hasBet) delete race.players[sid];
+    if (p.bet <= 0) delete race.players[sid];
   }
-  race.state     = 'racing';
+
+  race.state = 'racing';
   race.startTime = Date.now();
   race.raceCount++;
   broadcastRace(race);
   broadcastLobby();
-  io.to('race_'+race.id).emit('race_started', {
-    raceType: race.raceType, label: RACE_LABELS[race.raceType]
-  });
+  io.to('race_' + race.id).emit('race_started', { raceType: race.raceType, label: RACE_LABELS[race.raceType] });
+
+  // Update global stats
   const stats = readStats();
   stats.totalRaces++;
   writeStats(stats);
 
-  // 16 ms tick — matches original 60fps requestAnimationFrame physics exactly
   race.tickTimer = setInterval(() => stepRace(race), TICK_INTERVAL);
 }
 
-// Exact replica of original client updateHorses() — same formulas, same order
 function stepRace(race) {
-  const leaderX = Math.max(...race.horses.map(h=>h.x));
-  const tNorm   = Math.min((leaderX-0.1)/race.raceDist, 1);
+  const leaderX = Math.max(...race.horses.map(h => h.x));
+  const tNorm = Math.min((leaderX - 0.1) / race.raceDist, 1);
 
   race.horses.forEach(h => {
-    h.speed    = computeSpeed(h, tNorm);
-    h.x       += h.speed * (1+(Math.random()*RANDOMNESS-RANDOMNESS/2));
+    h.speed = computeSpeed(h, tNorm);
+    h.x += h.speed * (1 + (Math.random() * RANDOMNESS - RANDOMNESS / 2));
     h.maxSpeed = Math.max(h.maxSpeed, h.speed);
   });
 
   if (tNorm < PACK_END_FRACTION) {
-    const gc = race.horses.reduce((s,h)=>s+h.x,0)/race.horses.length;
-    race.horses.forEach(h => { h.x += (gc-h.x)*PACK_TIGHTNESS; });
+    const gc = race.horses.reduce((s, h) => s + h.x, 0) / race.horses.length;
+    race.horses.forEach(h => { h.x += (gc - h.x) * PACK_TIGHTNESS; });
   }
 
-  // Slim tick payload — only what the client renderer needs
-  io.to('race_'+race.id).emit('race_tick', {
-    horses: race.horses.map((h,i)=>({ i, x:h.x, speed:h.speed })),
+  io.to('race_' + race.id).emit('race_tick', {
+    horses: race.horses.map((h, i) => ({ i, x: h.x, speed: h.speed })),
     tNorm
   });
 
-  if (Math.max(...race.horses.map(h=>h.x)) >= race.finishX) {
+  if (Math.max(...race.horses.map(h => h.x)) >= race.finishX) {
     clearInterval(race.tickTimer); race.tickTimer = null;
     finishRace(race);
   }
@@ -423,171 +408,499 @@ async function finishRace(race) {
   race.state = 'results';
   const raceTimeMs = Date.now() - race.startTime;
 
-  const byPos   = [...race.horses].map((h,i)=>({h,i})).sort((a,b)=>b.h.x-a.h.x);
-  const bySpeed = [...race.horses].map((h,i)=>({h,i})).sort((a,b)=>b.h.maxSpeed-a.h.maxSpeed);
-  const winnerIdx  = byPos[0].i;
+  const byPos = [...race.horses].map((h, i) => ({ h, i })).sort((a, b) => b.h.x - a.h.x);
+  const bySpeed = [...race.horses].map((h, i) => ({ h, i })).sort((a, b) => b.h.maxSpeed - a.h.maxSpeed);
+  const winnerIdx = byPos[0].i;
   const fastestIdx = bySpeed[0].i;
-  const top3       = byPos.slice(0,3).map(e=>e.i);
+  const top3 = byPos.slice(0, 3).map(e => e.i);
 
   const results = {
-    winner:winnerIdx, top3, fastest:fastestIdx,
-    podium: byPos.slice(0,3).map(e=>e.i+1),
-    raceType: race.raceType, raceLabel: RACE_LABELS[race.raceType], raceTimeMs
+    winner: winnerIdx, top3, fastest: fastestIdx,
+    podium: byPos.slice(0, 3).map(e => e.i + 1),
+    raceType: race.raceType, raceLabel: RACE_LABELS[race.raceType],
+    raceTimeMs
   };
 
-  const db      = readDB();
-  const stats   = readStats();
+  const db = readDB();
+  const stats = readStats();
   const payouts = [];
 
   for (const [socketId, player] of Object.entries(race.players)) {
-    if (!player.hasBet) continue;
-    const user = db.users.find(u=>u.id===player.userId);
+    if (player.bet <= 0) continue;
+    const user = db.users.find(u => u.id === player.userId);
     if (!user) continue;
 
-    const { bet, betType, betHorse } = player;
+    const bet = player.bet, betType = player.betType, betHorse = player.betHorse;
     const odds = getOdds(race.horses[betHorse], betType);
 
     let win = false;
-    if (betType==='win'     && betHorse===winnerIdx)   win = true;
-    if (betType==='top3'    && top3.includes(betHorse)) win = true;
-    if (betType==='fastest' && betHorse===fastestIdx)  win = true;
+    if (betType === 'win'     && betHorse === winnerIdx)     win = true;
+    if (betType === 'top3'    && top3.includes(betHorse))    win = true;
+    if (betType === 'fastest' && betHorse === fastestIdx)    win = true;
 
     let netProfit = 0;
     if (win) {
-      const totalReturn = parseFloat((bet*odds).toFixed(2));
-      netProfit         = parseFloat((totalReturn-bet).toFixed(2));
-      user.balance      = parseFloat((user.balance+totalReturn).toFixed(2));
+      const totalReturn = parseFloat((bet * odds).toFixed(2));
+      netProfit = parseFloat((totalReturn - bet).toFixed(2));
+      user.balance = parseFloat((user.balance + totalReturn).toFixed(2));
       user.stats.racesWon++;
-      user.stats.totalWon      += netProfit;
-      user.stats.biggestWin     = Math.max(user.stats.biggestWin, netProfit);
-      user.stats.currentStreak  = (user.stats.currentStreak||0)+1;
-      user.stats.winStreak      = Math.max(user.stats.winStreak, user.stats.currentStreak);
-      stats.totalWagered       += bet;
-      if (netProfit > stats.biggestWin) {
-        stats.biggestWin    = netProfit;
-        stats.biggestWinner = user.username;
-      }
+      user.stats.totalWon += netProfit;
+      user.stats.biggestWin = Math.max(user.stats.biggestWin, netProfit);
+      user.stats.currentStreak = (user.stats.currentStreak || 0) + 1;
+      user.stats.winStreak = Math.max(user.stats.winStreak, user.stats.currentStreak);
+      stats.totalWagered += bet;
+      if (netProfit > stats.biggestWin) { stats.biggestWin = netProfit; stats.biggestWinner = user.username; }
     } else {
-      user.stats.biggestLoss   = Math.max(user.stats.biggestLoss, bet);
+      user.stats.biggestLoss = Math.max(user.stats.biggestLoss, bet);
       user.stats.currentStreak = 0;
-      stats.totalWagered      += bet;
+      stats.totalWagered += bet;
     }
+
     user.stats.racesPlayed++;
     user.stats.totalWagered += bet;
-    user.lastSeen            = new Date().toISOString();
+    user.lastSeen = new Date().toISOString();
 
     payouts.push({
       socketId, userId: player.userId, username: player.username,
-      betHorse, betType, bet, odds, win, netProfit, balance: user.balance
+      betHorse, betType, bet, odds, win, netProfit,
+      balance: user.balance
     });
   }
 
-  // ── Persist everything before notifying clients ────────────
-  // Store pendingResult for any player whose socket is no longer connected.
-  // This is delivered the next time they authenticate on ANY page (lobby or derby).
-  payouts.forEach(p => {
-    const personalPayload = {
-      win: p.win, bet: p.bet, odds: p.odds,
-      netProfit: p.netProfit, balance: p.balance,
-      betHorse: p.betHorse, betType: p.betType,
-      raceLabel: RACE_LABELS[race.raceType],
-      podium: results.podium, fastest: fastestIdx+1
-    };
-    const sock = io.sockets.sockets.get(p.socketId);
-    if (sock && sock.connected) {
-      sock.emit('personal_result', personalPayload);
-    } else {
-      // Socket gone (navigated away) — queue for next login/page-load
-      const u = db.users.find(u=>u.id===p.userId);
-      if (u) u.pendingResult = personalPayload;
-    }
-  });
-
-  writeDB(db);     // persist balances + stats + pendingResults in one atomic write
+  writeDB(db);
   writeStats(stats);
 
+  // Add to recent results feed
   recentResults.unshift({
-    raceId: race.id, raceType: race.raceType, raceLabel: RACE_LABELS[race.raceType],
-    winner: winnerIdx+1, fastest: fastestIdx+1,
+    raceId: race.id, raceType: race.raceType,
+    winner: winnerIdx + 1, fastest: fastestIdx + 1,
     playerCount: payouts.length, timestamp: new Date().toISOString(),
-    payouts: payouts.map(p=>({ username:p.username, win:p.win, netProfit:p.netProfit, bet:p.bet }))
+    payouts: payouts.map(p => ({ username: p.username, win: p.win, netProfit: p.netProfit, bet: p.bet }))
   });
   if (recentResults.length > 50) recentResults.pop();
 
-  io.to('race_'+race.id).emit('race_results', {
-    results, payouts: payouts.map(p=>({ ...p, socketId:undefined }))
+  io.to('race_' + race.id).emit('race_results', { results, payouts: payouts.map(p => ({ ...p, socketId: undefined })) });
+
+  // Send personal balances
+  payouts.forEach(p => {
+    io.to(p.socketId).emit('personal_result', {
+      win: p.win, bet: p.bet, odds: p.odds, netProfit: p.netProfit, balance: p.balance
+    });
   });
 
-  io.emit('live_feed',    recentResults.slice(0,10));
+  // Broadcast live feed to everyone
+  io.emit('live_feed', recentResults.slice(0, 10));
   io.emit('global_stats', { ...stats, totalUsers: db.users.length });
+
   broadcastLobby();
 
-  race.resultTimer = setTimeout(()=>resetRace(race), RESULTS_SHOW);
+  race.resultTimer = setTimeout(() => resetRace(race), RESULTS_SHOW);
 }
 
-// ══════════════════════════════════════════════════════════════
-//  SOCKET.IO
-// ══════════════════════════════════════════════════════════════
-const connectedUsers = new Map(); // socketId → { username, raceId }
+// ── CARROM GAME ───────────────────────────────────────────────
+const carromGames = new Map(); // gameId -> game state
+const carromQueue = []; // waiting players: { socketId, username, userId, bet }
+let carromGameCounter = 0;
 
-io.on('connection', socket => {
-  let currentUser   = null;
+const BOARD_SIZE = 800;
+const POCKET_RADIUS = 25;
+const PUCK_RADIUS = 15;
+const STRIKER_RADIUS = 18;
+const FRICTION = 0.98;
+const RESTITUTION = 0.85;
+const BASELINE_Y = 100;
+const BASELINE_SPACING = 100;
+
+function createCarromGame(p1, p2, bet) {
+  const gameId = ++carromGameCounter;
+  
+  // Initialize pucks in center formation
+  const centerX = BOARD_SIZE / 2;
+  const centerY = BOARD_SIZE / 2;
+  const pucks = [];
+  
+  // Red queen in center
+  pucks.push({ id: 0, type: 'red', owner: 0, x: centerX, y: centerY, vx: 0, vy: 0, pocketed: false });
+  
+  // White pucks (player 1) - arranged in circle
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 9) * Math.PI * 2;
+    const radius = 40 + (i % 3) * 20;
+    pucks.push({
+      id: i + 1, type: 'white', owner: 1,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      vx: 0, vy: 0, pocketed: false
+    });
+  }
+  
+  // Black pucks (player 2)
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 9) * Math.PI * 2 + Math.PI / 9;
+    const radius = 50 + (i % 3) * 20;
+    pucks.push({
+      id: i + 10, type: 'black', owner: 2,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      vx: 0, vy: 0, pocketed: false
+    });
+  }
+  
+  const game = {
+    id: gameId,
+    players: {
+      1: { socketId: p1.socketId, username: p1.username, userId: p1.userId, hasQueen: false },
+      2: { socketId: p2.socketId, username: p2.username, userId: p2.userId, hasQueen: false }
+    },
+    turn: 1,
+    bet,
+    pot: bet * 2,
+    pucks,
+    striker: { x: centerX, y: BOARD_SIZE - BASELINE_Y, vx: 0, vy: 0, active: false },
+    tickTimer: null,
+    lastPocket: null,
+    fouls: { 1: 0, 2: 0 }
+  };
+  
+  carromGames.set(gameId, game);
+  return game;
+}
+
+function publicCarromState(game) {
+  return {
+    id: game.id,
+    players: game.players,
+    turn: game.turn,
+    bet: game.bet,
+    pot: game.pot,
+    pucks: game.pucks.map(p => ({ ...p, vx: undefined, vy: undefined })),
+    striker: { x: game.striker.x, y: game.striker.y, active: game.striker.active }
+  };
+}
+
+function stepCarromPhysics(game) {
+  const allObjects = [...game.pucks.filter(p => !p.pocketed), game.striker].filter(o => o.active || o.vx !== 0 || o.vy !== 0);
+  
+  let hasMovement = false;
+  let collisionOccurred = false;
+  
+  // Update positions
+  allObjects.forEach(obj => {
+    obj.x += obj.vx;
+    obj.y += obj.vy;
+    obj.vx *= FRICTION;
+    obj.vy *= FRICTION;
+    
+    if (Math.abs(obj.vx) < 0.01) obj.vx = 0;
+    if (Math.abs(obj.vy) < 0.01) obj.vy = 0;
+    
+    if (obj.vx !== 0 || obj.vy !== 0) hasMovement = true;
+    
+    // Wall collisions
+    const radius = obj === game.striker ? STRIKER_RADIUS : PUCK_RADIUS;
+    const margin = 30;
+    if (obj.x - radius < margin) { obj.x = margin + radius; obj.vx = -obj.vx * RESTITUTION; collisionOccurred = true; }
+    if (obj.x + radius > BOARD_SIZE - margin) { obj.x = BOARD_SIZE - margin - radius; obj.vx = -obj.vx * RESTITUTION; collisionOccurred = true; }
+    if (obj.y - radius < margin) { obj.y = margin + radius; obj.vy = -obj.vy * RESTITUTION; collisionOccurred = true; }
+    if (obj.y + radius > BOARD_SIZE - margin) { obj.y = BOARD_SIZE - margin - radius; obj.vy = -obj.vy * RESTITUTION; collisionOccurred = true; }
+  });
+  
+  // Puck-puck collisions
+  for (let i = 0; i < allObjects.length; i++) {
+    for (let j = i + 1; j < allObjects.length; j++) {
+      const a = allObjects[i];
+      const b = allObjects[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = (a === game.striker || b === game.striker ? STRIKER_RADIUS : PUCK_RADIUS) * 2;
+      
+      if (dist < minDist && dist > 0) {
+        collisionOccurred = true;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const overlap = minDist - dist;
+        a.x -= nx * overlap / 2;
+        a.y -= ny * overlap / 2;
+        b.x += nx * overlap / 2;
+        b.y += ny * overlap / 2;
+        
+        const dvx = a.vx - b.vx;
+        const dvy = a.vy - b.vy;
+        const dot = dvx * nx + dvy * ny;
+        
+        if (dot > 0) {
+          a.vx -= dot * nx * RESTITUTION;
+          a.vy -= dot * ny * RESTITUTION;
+          b.vx += dot * nx * RESTITUTION;
+          b.vy += dot * ny * RESTITUTION;
+        }
+      }
+    }
+  }
+  
+  // Check pocketing
+  const pockets = [
+    { x: 40, y: 40 }, { x: BOARD_SIZE - 40, y: 40 },
+    { x: 40, y: BOARD_SIZE - 40 }, { x: BOARD_SIZE - 40, y: BOARD_SIZE - 40 }
+  ];
+  
+  game.pucks.forEach(puck => {
+    if (puck.pocketed) return;
+    pockets.forEach(pocket => {
+      const dx = puck.x - pocket.x;
+      const dy = puck.y - pocket.y;
+      if (Math.sqrt(dx * dx + dy * dy) < POCKET_RADIUS) {
+        puck.pocketed = true;
+        puck.vx = 0;
+        puck.vy = 0;
+        game.lastPocket = { type: puck.type, owner: puck.owner };
+        
+        // Broadcast pocketed event
+        io.to(game.players[1].socketId).emit('carrom_pocketed', { type: puck.type, owner: puck.owner });
+        io.to(game.players[2].socketId).emit('carrom_pocketed', { type: puck.type, owner: puck.owner });
+      }
+    });
+  });
+  
+  // Check striker pocketing (foul)
+  if (game.striker.active) {
+    pockets.forEach(pocket => {
+      const dx = game.striker.x - pocket.x;
+      const dy = game.striker.y - pocket.y;
+      if (Math.sqrt(dx * dx + dy * dy) < POCKET_RADIUS) {
+        game.striker.active = false;
+        game.striker.vx = 0;
+        game.striker.vy = 0;
+        game.fouls[game.turn]++;
+      }
+    });
+  }
+  
+  if (collisionOccurred) {
+    io.to(game.players[1].socketId).emit('carrom_collision');
+    io.to(game.players[2].socketId).emit('carrom_collision');
+  }
+  
+  return hasMovement;
+}
+
+function endCarromTurn(game) {
+  if (game.tickTimer) {
+    clearInterval(game.tickTimer);
+    game.tickTimer = null;
+  }
+  
+  game.striker.active = false;
+  
+  // Check if player pocketed their own puck
+  let continuesTurn = false;
+  if (game.lastPocket) {
+    const currentPlayer = game.turn;
+    if (game.lastPocket.type === 'red') {
+      // Queen pocketed - must cover it by pocketing own puck next
+      game.players[currentPlayer].hasQueen = true;
+      continuesTurn = true;
+    } else if (game.lastPocket.owner === currentPlayer) {
+      continuesTurn = true;
+    }
+  }
+  
+  game.lastPocket = null;
+  
+  // Check win condition
+  const p1Pucks = game.pucks.filter(p => p.owner === 1 && !p.pocketed).length;
+  const p2Pucks = game.pucks.filter(p => p.owner === 2 && !p.pocketed).length;
+  
+  if (p1Pucks === 0) {
+    endCarromGame(game, 1);
+    return;
+  } else if (p2Pucks === 0) {
+    endCarromGame(game, 2);
+    return;
+  }
+  
+  // Switch turn if not continuing
+  if (!continuesTurn) {
+    game.turn = game.turn === 1 ? 2 : 1;
+  }
+  
+  // Reset striker position
+  const baselineY = game.turn === 1 ? BOARD_SIZE - BASELINE_Y : BASELINE_Y;
+  game.striker.x = BOARD_SIZE / 2 + (Math.random() - 0.5) * 200;
+  game.striker.y = baselineY;
+  game.striker.vx = 0;
+  game.striker.vy = 0;
+  
+  broadcastCarromState(game);
+}
+
+function endCarromGame(game, winner) {
+  if (game.tickTimer) clearInterval(game.tickTimer);
+  
+  const db = readDB();
+  const stats = readStats();
+  
+  Object.values(game.players).forEach((player, idx) => {
+    const playerNum = idx + 1;
+    const user = db.users.find(u => u.id === player.userId);
+    if (!user) return;
+    
+    if (playerNum === winner) {
+      user.balance += game.pot;
+      io.to(player.socketId).emit('carrom_game_over', { winner, pot: game.pot, balance: user.balance });
+      stats.biggestWin = Math.max(stats.biggestWin, game.bet);
+    } else {
+      io.to(player.socketId).emit('carrom_game_over', { winner, pot: 0, balance: user.balance });
+    }
+  });
+  
+  writeDB(db);
+  writeStats(stats);
+  carromGames.delete(game.id);
+}
+
+function broadcastCarromState(game) {
+  const state = publicCarromState(game);
+  io.to(game.players[1].socketId).emit('carrom_state', state);
+  io.to(game.players[2].socketId).emit('carrom_state', state);
+}
+
+// ── SOCKET.IO ─────────────────────────────────────────────────
+const connectedUsers = new Map(); // socketId -> { username, raceId }
+
+io.on('connection', (socket) => {
+  let currentUser = null;
   let currentRaceId = null;
+  let currentCarromGame = null;
 
   socket.emit('lobby_state', Object.values(races).map(lobbyItem));
-  socket.emit('live_feed',   recentResults.slice(0,10));
-  socket.emit('global_stats',{ ...readStats(), totalUsers: readDB().users.length });
+  socket.emit('live_feed', recentResults.slice(0, 10));
+  socket.emit('global_stats', { ...readStats(), totalUsers: readDB().users.length });
 
-  // ── Auth ──────────────────────────────────────────────────
-  socket.on('auth', token => {
+  socket.on('auth', (token) => {
     const decoded = verifyToken(token);
-    if (!decoded) { socket.emit('auth_error','Session expired — please log in again'); return; }
+    if (!decoded) { socket.emit('auth_error', 'Session expired — please log in again'); return; }
+    const db = readDB();
+    const user = db.users.find(u => u.id === decoded.id);
+    if (!user) { socket.emit('auth_error', 'Account not found'); return; }
 
-    const db   = readDB();
-    const user = db.users.find(u=>u.id===decoded.id);
-    if (!user) { socket.emit('auth_error','Account not found'); return; }
-
-    user.lastSeen = new Date().toISOString();
-
-    // Deliver any pending result from a race that finished while they were away.
-    // Works whether they're on the lobby page or the derby page.
-    let hasPending = false;
-    if (user.pendingResult) {
-      socket.emit('personal_result', user.pendingResult);
-      user.pendingResult = null;
-      hasPending = true;
-    }
-
-    writeDB(db); // persist lastSeen (and clear pendingResult)
-
-    currentUser = { id:user.id, username:user.username };
-    connectedUsers.set(socket.id, { username:user.username, raceId:null });
+    currentUser = { id: user.id, username: user.username };
+    connectedUsers.set(socket.id, { username: user.username, raceId: null });
 
     socket.emit('auth_ok', {
-      username:user.username, balance:user.balance, stats:user.stats, id:user.id,
-      hasPendingResult: hasPending
+      username: user.username, balance: user.balance, stats: user.stats, id: user.id
     });
     io.emit('active_count', connectedUsers.size);
   });
 
-  // ── Join race room ─────────────────────────────────────────
-  socket.on('join_race', raceId => {
-    if (!currentUser) { socket.emit('error_msg','Please log in first'); return; }
+  // ── CARROM HANDLERS ───────────────────────────────────────
+  socket.on('carrom_find_match', ({ bet }) => {
+    if (!currentUser) return;
+    bet = parseFloat(bet);
+    if (bet < 10) { socket.emit('error_msg', 'Minimum bet is $10'); return; }
+    
+    const db = readDB();
+    const user = db.users.find(u => u.id === currentUser.id);
+    if (!user || user.balance < bet) { socket.emit('error_msg', 'Insufficient balance'); return; }
+    
+    // Deduct bet immediately
+    user.balance -= bet;
+    writeDB(db);
+    socket.emit('auth_ok', { username: user.username, balance: user.balance, stats: user.stats, id: user.id });
+    
+    // Check for waiting opponent with same bet
+    const opponent = carromQueue.find(p => Math.abs(p.bet - bet) < 0.01);
+    if (opponent) {
+      // Match found!
+      carromQueue.splice(carromQueue.indexOf(opponent), 1);
+      
+      const game = createCarromGame(
+        { socketId: opponent.socketId, username: opponent.username, userId: opponent.userId },
+        { socketId: socket.id, username: currentUser.username, userId: currentUser.id },
+        bet
+      );
+      
+      currentCarromGame = game.id;
+      
+      io.to(opponent.socketId).emit('carrom_match_found', {
+        gameId: game.id, playerNum: 1, state: publicCarromState(game)
+      });
+      socket.emit('carrom_match_found', {
+        gameId: game.id, playerNum: 2, state: publicCarromState(game)
+      });
+    } else {
+      // Join queue
+      carromQueue.push({ socketId: socket.id, username: currentUser.username, userId: currentUser.id, bet });
+    }
+  });
+  
+  socket.on('carrom_cancel_match', () => {
+    const idx = carromQueue.findIndex(p => p.socketId === socket.id);
+    if (idx !== -1) {
+      const player = carromQueue[idx];
+      carromQueue.splice(idx, 1);
+      
+      // Refund bet
+      const db = readDB();
+      const user = db.users.find(u => u.id === currentUser.id);
+      if (user) {
+        user.balance += player.bet;
+        writeDB(db);
+        socket.emit('auth_ok', { username: user.username, balance: user.balance, stats: user.stats, id: user.id });
+      }
+    }
+  });
+  
+  socket.on('carrom_shoot', ({ vx, vy }) => {
+    if (!currentCarromGame) return;
+    const game = carromGames.get(currentCarromGame);
+    if (!game) return;
+    
+    const playerNum = game.players[1].socketId === socket.id ? 1 : 2;
+    if (game.turn !== playerNum || game.striker.active) return;
+    
+    // Validate shot power
+    const power = Math.sqrt(vx * vx + vy * vy);
+    if (power > 20) { vx *= 20 / power; vy *= 20 / power; }
+    
+    game.striker.vx = vx;
+    game.striker.vy = vy;
+    game.striker.active = true;
+    
+    // Start physics tick
+    game.tickTimer = setInterval(() => {
+      const hasMovement = stepCarromPhysics(game);
+      broadcastCarromState(game);
+      
+      if (!hasMovement) {
+        endCarromTurn(game);
+      }
+    }, 16); // ~60fps
+  });
+
+  socket.on('join_race', (raceId) => {
+    if (!currentUser) { socket.emit('error_msg', 'Please log in first'); return; }
     const race = races[raceId];
-    if (!race)        { socket.emit('error_msg','Race not found'); return; }
+    if (!race) { socket.emit('error_msg', 'Race not found'); return; }
 
-    if (currentRaceId && currentRaceId !== raceId) leaveRace(socket, currentRaceId);
+    // Leave current race
+    if (currentRaceId && currentRaceId !== raceId) {
+      leaveRace(socket, currentRaceId, currentUser);
+    }
 
-    socket.join('race_'+raceId);
+    socket.join('race_' + raceId);
     currentRaceId = raceId;
     if (connectedUsers.has(socket.id)) connectedUsers.get(socket.id).raceId = raceId;
 
-    // Add as spectator slot only if room still open for bets
-    if ((race.state==='open'||race.state==='countdown') && !race.players[socket.id]) {
-      race.players[socket.id] = {
-        userId:   currentUser.id, username:currentUser.username,
-        bet:0, betHorse:0, betType:'win', hasBet:false
-      };
+    // Add as player (spectator until bet placed) only if race is open
+    if (race.state === 'open' || race.state === 'countdown') {
+      if (!race.players[socket.id]) {
+        race.players[socket.id] = {
+          userId: currentUser.id, username: currentUser.username,
+          bet: 0, betHorse: 0, betType: 'win', hasBet: false
+        };
+      }
     }
 
     socket.emit('joined_race', { raceId, state: publicRace(race) });
@@ -595,122 +908,141 @@ io.on('connection', socket => {
     broadcastLobby();
   });
 
-  // ── Place bet ──────────────────────────────────────────────
   socket.on('place_bet', ({ bet, betHorse, betType }) => {
     if (!currentUser || !currentRaceId) return;
     const race = races[currentRaceId];
     if (!race) return;
-    if (race.state !== 'open') { socket.emit('error_msg','Betting is closed'); return; }
+    if (race.state !== 'open') { socket.emit('error_msg', 'Betting is closed for this race'); return; }
 
     bet = parseFloat(bet);
-    if (!Number.isFinite(bet)||bet<5) { socket.emit('error_msg','Minimum bet is $5'); return; }
-    if (!['win','top3','fastest','draw'].includes(betType)) { socket.emit('error_msg','Invalid bet type'); return; }
+    if (!Number.isFinite(bet) || bet < 5) { socket.emit('error_msg', 'Minimum bet is $5'); return; }
+    if (!['win','top3','fastest','draw'].includes(betType)) { socket.emit('error_msg', 'Invalid bet type'); return; }
     betHorse = parseInt(betHorse);
-    if (betHorse<0||betHorse>=race.horses.length) { socket.emit('error_msg','Invalid horse'); return; }
+    if (betHorse < 0 || betHorse >= race.horses.length) { socket.emit('error_msg', 'Invalid horse selection'); return; }
 
-    const db   = readDB();
-    const user = db.users.find(u=>u.id===currentUser.id);
+    const db = readDB();
+    const user = db.users.find(u => u.id === currentUser.id);
     if (!user) return;
 
     const player = race.players[socket.id];
-    if (player && player.hasBet) user.balance = parseFloat((user.balance+player.bet).toFixed(2));
+    // Refund previous bet if changing
+    if (player && player.bet > 0) user.balance += player.bet;
 
     bet = Math.min(bet, user.balance);
-    bet = Math.floor(bet*100)/100;
-    if (bet<5) { socket.emit('error_msg','Insufficient balance'); return; }
+    bet = Math.floor(bet * 100) / 100; // 2dp
+    if (bet < 5) { socket.emit('error_msg', 'Insufficient balance for minimum bet of $5'); return; }
 
-    user.balance = parseFloat((user.balance-bet).toFixed(2));
-    writeDB(db); // persist deduction immediately
+    user.balance = parseFloat((user.balance - bet).toFixed(2));
+    writeDB(db);
 
     race.players[socket.id] = {
-      userId:currentUser.id, username:currentUser.username,
-      bet, betHorse, betType, hasBet:true
+      userId: currentUser.id, username: currentUser.username,
+      bet, betHorse, betType, hasBet: true
     };
 
-    socket.emit('bet_confirmed',{ bet, betHorse, betType, balance:user.balance });
+    socket.emit('bet_confirmed', { bet, betHorse, betType, balance: user.balance });
     broadcastRace(race);
 
-    const bettors = Object.values(race.players).filter(p=>p.hasBet);
-    const total   = Object.keys(race.players).length;
-    if (total===1 && bettors.length===1) {
-      startCountdown(race);              // solo player → immediate countdown
-    } else if (bettors.length===1 && !race.betTimer) {
-      startBettingTimer(race);           // first bet with others present → 60 s window
+    const bettors = Object.values(race.players).filter(p => p.hasBet);
+    const total = Object.keys(race.players).length;
+
+    if (total === 1 && bettors.length === 1) {
+      // Solo player: start countdown immediately
+      startCountdown(race);
+    } else if (bettors.length === 1 && !race.betTimer) {
+      // First bet in multi-player: start 60s timer
+      startBettingTimer(race);
     }
     broadcastLobby();
   });
 
-  // ── Cancel bet (countdown window only) ────────────────────
   socket.on('cancel_bet', () => {
     if (!currentUser || !currentRaceId) return;
     const race = races[currentRaceId];
-    if (!race||race.state!=='countdown') return;
-    const player = race.players[socket.id];
-    if (!player||!player.hasBet) return;
+    if (!race || race.state !== 'countdown') return;
 
-    const db   = readDB();
-    const user = db.users.find(u=>u.id===currentUser.id);
+    const player = race.players[socket.id];
+    if (!player || !player.hasBet) return;
+
+    const db = readDB();
+    const user = db.users.find(u => u.id === currentUser.id);
     if (user) {
-      user.balance = parseFloat((user.balance+player.bet).toFixed(2));
-      writeDB(db); // persist refund immediately
+      user.balance = parseFloat((user.balance + player.bet).toFixed(2));
+      writeDB(db);
     }
-    player.bet   = 0;
-    player.hasBet = false;
-    socket.emit('bet_cancelled',{ balance: user?user.balance:null });
+    player.bet = 0; player.hasBet = false;
+    socket.emit('bet_cancelled', { balance: user ? user.balance : null });
     broadcastRace(race);
   });
 
-  // ── Leaderboard ───────────────────────────────────────────
   socket.on('get_leaderboard', () => {
-    const db  = readDB();
+    const db = readDB();
     const top = [...db.users]
-      .sort((a,b)=>b.balance-a.balance).slice(0,50)
+      .sort((a, b) => b.balance - a.balance).slice(0, 50)
       .map(u => ({
         username: u.username, balance: u.balance,
         racesPlayed: u.stats.racesPlayed, racesWon: u.stats.racesWon,
-        biggestWin: u.stats.biggestWin,   totalWagered: u.stats.totalWagered,
-        winRate: u.stats.racesPlayed>0
-          ? ((u.stats.racesWon/u.stats.racesPlayed)*100).toFixed(1) : '0.0'
+        biggestWin: u.stats.biggestWin, totalWagered: u.stats.totalWagered,
+        winRate: u.stats.racesPlayed > 0 ? ((u.stats.racesWon / u.stats.racesPlayed) * 100).toFixed(1) : '0.0'
       }));
     socket.emit('leaderboard', top);
   });
 
-  // ── Disconnect ────────────────────────────────────────────
   socket.on('disconnect', () => {
-    if (currentRaceId) leaveRace(socket, currentRaceId);
+    // Handle Carrom disconnect
+    if (currentCarromGame) {
+      const game = carromGames.get(currentCarromGame);
+      if (game) {
+        const playerNum = game.players[1].socketId === socket.id ? 1 : 2;
+        const opponent = game.players[playerNum === 1 ? 2 : 1];
+        
+        // Opponent wins by default
+        io.to(opponent.socketId).emit('carrom_opponent_left');
+        
+        // Refund opponent's bet + award pot
+        const db = readDB();
+        const user = db.users.find(u => u.id === opponent.userId);
+        if (user) {
+          user.balance += game.pot;
+          writeDB(db);
+        }
+        
+        carromGames.delete(game.id);
+      }
+    }
+    
+    // Remove from carrom queue
+    const qIdx = carromQueue.findIndex(p => p.socketId === socket.id);
+    if (qIdx !== -1) {
+      const player = carromQueue[qIdx];
+      carromQueue.splice(qIdx, 1);
+      
+      // Refund bet
+      const db = readDB();
+      const user = db.users.find(u => u.id === currentUser?.id);
+      if (user) {
+        user.balance += player.bet;
+        writeDB(db);
+      }
+    }
+    
+    if (currentRaceId) leaveRace(socket, currentRaceId, currentUser);
     connectedUsers.delete(socket.id);
     io.emit('active_count', connectedUsers.size);
   });
 
-  // ── Leave helper ──────────────────────────────────────────
-  function leaveRace(sock, raceId) {
+  function leaveRace(sock, raceId, user) {
     const race = races[raceId];
     if (!race) return;
-
     const player = race.players[sock.id];
-
-    if (player && player.hasBet) {
-      if (race.state === 'open') {
-        // Race hasn't started — safe to refund
-        const db = readDB();
-        const u  = db.users.find(u=>u.id===currentUser?.id);
-        if (u) {
-          u.balance = parseFloat((u.balance+player.bet).toFixed(2));
-          writeDB(db);
-          sock.emit('balance_update',{ balance:u.balance });
-        }
-        delete race.players[sock.id];
-      }
-      // If racing / countdown / results:
-      // Keep the player slot so finishRace() can still pay them out.
-      // finishRace() detects the socket is gone and stores a pendingResult.
-      // Do NOT delete their slot here.
-    } else {
-      // No bet placed — safe to remove spectator slot
-      delete race.players[sock.id];
+    if (player && player.hasBet && (race.state === 'open')) {
+      // Refund if race hasn't started
+      const db = readDB();
+      const u = db.users.find(u => u.id === user?.id);
+      if (u) { u.balance += player.bet; writeDB(db); sock.emit('balance_update', { balance: u.balance }); }
     }
-
-    sock.leave('race_'+raceId);
+    delete race.players[sock.id];
+    sock.leave('race_' + raceId);
     if (connectedUsers.has(sock.id)) connectedUsers.get(sock.id).raceId = null;
     broadcastRace(race);
     broadcastLobby();
@@ -718,7 +1050,6 @@ io.on('connection', socket => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🏇 Strix server on port ${PORT}  tick=${TICK_INTERVAL}ms`);
-  console.log(`   RACE_DISTS sprint=${RACE_DISTS.sprint} distance=${RACE_DISTS.distance} derby=${RACE_DISTS.derby}`);
-  console.log(`   Data: ${DATA_DIR}`);
+  console.log(`🏇 Strix server running on port ${PORT}`);
+  if (!fs.existsSync(path.join(__dirname, 'data'))) fs.mkdirSync(path.join(__dirname, 'data'));
 });
