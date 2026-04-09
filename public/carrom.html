@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strix | Carrom — Two Player</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo_icon.png">
+<style>
+:root {
+  --lime: #84cc16; --lime-bright: #a3e635; --lime-dim: #3a5a06;
+  --bg-deep: #04060f; --bg-card: #070b1a; --bg-card2: #080d1f;
+  --border: #111d35; --border-lime: #1e3007;
+  --text: #dde8cc; --text-dim: #4f6070; --text-mid: #8a9aaa;
+  --green: #22c55e; --red: #ef4444; --cyan: #38bdf8;
+  --purple: #a78bfa; --amber: #f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+main{flex:1;display:flex;flex-direction:column;}
+.wrap{width:100vw;max-width:1600px;margin:auto;padding:12px;flex:1;display:flex;flex-direction:column;}
+
+/* ── AUTH MODAL ── */
+#authOverlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(2,4,15,0.96);backdrop-filter:blur(12px);}
+#authOverlay.hidden{display:none;}
+.auth-box{width:440px;max-width:94vw;background:var(--bg-card);border:1px solid var(--border);border-radius:18px;overflow:hidden;position:relative;}
+.auth-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--lime),transparent);}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);}
+.auth-tab{flex:1;padding:16px;text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border:none;background:transparent;transition:0.18s;}
+.auth-tab.active{color:var(--lime);background:rgba(132,204,22,0.04);}
+.auth-body{padding:32px;}
+.auth-logo-text{font-family:'Orbitron',monospace;font-size:26px;font-weight:900;color:var(--lime-bright);letter-spacing:5px;display:block;text-align:center;margin-bottom:6px;}
+.auth-tagline{font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:24px;}
+.auth-field{margin-bottom:14px;}
+.auth-label{display:block;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;}
+.auth-input{width:100%;padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text);font-size:14px;transition:border-color 0.2s;}
+.auth-input:focus{outline:none;border-color:var(--lime-dim);}
+.auth-btn{width:100%;padding:13px;border-radius:9px;border:none;background:linear-gradient(135deg,#4d7c0f,var(--lime));color:#000;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:8px;transition:0.2s;}
+.auth-btn:hover{transform:translateY(-1px);}
+.auth-error{font-size:12px;color:var(--red);text-align:center;min-height:18px;margin-top:10px;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;position:relative;overflow:hidden;}
+.topbar::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--lime),transparent);opacity:0.55;}
+.logo-area{display:flex;align-items:center;gap:12px;}
+.logo-area img{height:36px;width:auto;}
+#fallback-logo{font-family:'Orbitron',monospace;font-size:18px;font-weight:900;color:var(--lime-bright);letter-spacing:4px;display:none;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.balance-pill{display:flex;align-items:center;gap:8px;background:rgba(132,204,22,0.05);border:1px solid var(--lime-dim);border-radius:9px;padding:7px 14px;}
+.balance-label{font-size:9px;color:var(--lime-dim);letter-spacing:2px;text-transform:uppercase;font-weight:700;}
+.balance-amount{font-family:'Orbitron',monospace;font-size:15px;font-weight:700;color:var(--lime-bright);}
+.user-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:pointer;font-size:10px;font-weight:700;color:var(--text-mid);}
+.nav-back{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:6px 12px;border-radius:8px;text-decoration:none;color:var(--text-dim);border:1px solid var(--border);transition:0.18s;}
+.nav-back:hover{color:var(--lime);border-color:var(--border-lime);}
+
+/* ── GAME LAYOUT ── */
+.game-container{display:grid;grid-template-columns:280px 1fr 280px;gap:12px;flex:1;min-height:0;}
+@media(max-width:1200px){.game-container{grid-template-columns:1fr;}}
+
+.side-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;overflow-y:auto;}
+.panel-header{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--lime);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+
+/* ── MATCHMAKING ── */
+.bet-selector{margin-bottom:14px;}
+.bet-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;}
+.bet-input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text);font-family:'Orbitron',monospace;font-size:14px;}
+.bet-input:focus{outline:none;border-color:var(--lime-dim);}
+.quick-bets{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;}
+.quick-bet{padding:6px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:var(--text-dim);font-size:11px;font-weight:600;cursor:pointer;text-align:center;transition:0.18s;}
+.quick-bet:hover{border-color:var(--lime-dim);color:var(--lime);}
+.btn-primary{width:100%;padding:11px;border-radius:9px;border:none;background:linear-gradient(135deg,#4d7c0f,var(--lime));color:#000;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:0.2s;margin-top:10px;}
+.btn-primary:hover{transform:translateY(-1px);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.btn-cancel{width:100%;padding:9px;border-radius:8px;border:1px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.06);color:var(--red);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:0.18s;margin-top:8px;}
+.btn-cancel:hover{background:rgba(239,68,68,0.12);}
+.status-msg{font-size:12px;color:var(--text-mid);text-align:center;margin-top:12px;line-height:1.5;}
+.status-msg.waiting{color:var(--amber);}
+.status-msg.ready{color:var(--lime);}
+
+/* ── GAME INFO ── */
+.game-info{display:flex;flex-direction:column;gap:10px;}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,0.02);border-radius:8px;}
+.info-label{font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;}
+.info-value{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--lime-bright);}
+.player-card{padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;}
+.player-card.active{border-color:var(--lime);background:rgba(132,204,22,0.05);}
+.player-name{font-weight:700;color:var(--text);margin-bottom:4px;}
+.player-pucks{font-size:11px;color:var(--text-dim);}
+.player-pucks.red{color:var(--red);}
+
+/* ── BOARD ── */
+.board-container{position:relative;display:flex;align-items:center;justify-content:center;background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+#carromCanvas{display:block;max-width:100%;max-height:100%;cursor:crosshair;}
+.turn-indicator{position:absolute;top:12px;left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:rgba(0,0,0,0.8);border:1px solid var(--border);z-index:10;}
+.turn-indicator.my-turn{color:var(--lime);border-color:var(--lime);box-shadow:0 0 20px rgba(132,204,22,0.3);}
+.turn-indicator.opponent-turn{color:var(--amber);border-color:var(--amber);}
+.power-meter{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:200px;height:8px;background:rgba(255,255,255,0.1);border:1px solid var(--border);border-radius:4px;overflow:hidden;display:none;}
+.power-meter.show{display:block;}
+.power-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--lime),var(--amber),var(--red));transition:width 0.1s linear;}
+
+/* ── LOG ── */
+.log-panel{max-height:400px;overflow-y:auto;}
+.log-entry{padding:6px 8px;margin-bottom:4px;border-radius:6px;background:rgba(255,255,255,0.02);font-size:11px;line-height:1.5;color:var(--text-mid);}
+.log-entry strong{color:var(--text);}
+.log-entry.win{color:var(--green);}
+.log-entry.lose{color:var(--red);}
+
+/* ── RESULT MODAL ── */
+#resultOverlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;background:rgba(2,4,15,0.88);backdrop-filter:blur(8px);}
+#resultOverlay.show{display:flex;}
+.result-box{position:relative;width:480px;max-width:92vw;border-radius:18px;padding:40px;text-align:center;animation:popIn 0.35s;}
+@keyframes popIn{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+.result-box.win-box{background:linear-gradient(160deg,#060f03,#0b1904);border:1px solid rgba(132,204,22,0.45);}
+.result-box.loss-box{background:linear-gradient(160deg,#0f0404,#1c0707);border:1px solid rgba(239,68,68,0.35);}
+.result-label{font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;}
+.win-box .result-label{color:var(--lime-dim);}
+.loss-box .result-label{color:#7a1515;}
+.result-headline{font-family:'Orbitron',monospace;font-size:42px;font-weight:900;margin-bottom:8px;}
+.win-box .result-headline{color:var(--lime-bright);}
+.loss-box .result-headline{color:var(--red);}
+.result-amount{font-family:'Orbitron',monospace;font-size:24px;font-weight:700;margin-bottom:20px;}
+.win-box .result-amount{color:var(--lime-bright);}
+.loss-box .result-amount{color:#f87171;}
+.btn-continue{padding:12px 40px;border-radius:9px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border:none;}
+.win-box .btn-continue{background:linear-gradient(135deg,#4d7c0f,var(--lime));color:#000;}
+.loss-box .btn-continue{background:linear-gradient(135deg,#991b1b,#ef4444);color:#fff;}
+</style>
+</head>
+<body>
+
+<!-- AUTH MODAL -->
+<div id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Create Account</button>
+    </div>
+    <div class="auth-body">
+      <span class="auth-logo-text">STRIX</span>
+      <div class="auth-tagline">Carrom — Two Player Game</div>
+      <div id="loginForm">
+        <div class="auth-field"><label class="auth-label">Username</label><input class="auth-input" id="loginUser" type="text" autocomplete="username"></div>
+        <div class="auth-field"><label class="auth-label">Password</label><input class="auth-input" id="loginPass" type="password" autocomplete="current-password"></div>
+        <button class="auth-btn" onclick="doLogin()">Sign In</button>
+      </div>
+      <div id="registerForm" style="display:none;">
+        <div class="auth-field"><label class="auth-label">Username</label><input class="auth-input" id="regUser" type="text"></div>
+        <div class="auth-field"><label class="auth-label">Password</label><input class="auth-input" id="regPass" type="password"></div>
+        <div class="auth-field"><label class="auth-label">Confirm Password</label><input class="auth-input" id="regPass2" type="password"></div>
+        <button class="auth-btn" onclick="doRegister()">Create Account</button>
+      </div>
+      <div class="auth-error" id="authError"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT MODAL -->
+<div id="resultOverlay">
+  <div id="resultBox" class="result-box">
+    <div id="resultLabel" class="result-label"></div>
+    <div id="resultHeadline" class="result-headline"></div>
+    <div id="resultAmount" class="result-amount"></div>
+    <button class="btn-continue" id="continueBtn">Return to Lobby</button>
+  </div>
+</div>
+
+<main>
+<div class="wrap">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo-area">
+      <img src="logo.png" alt="Strix" onerror="this.style.display='none';document.getElementById('fallback-logo').style.display='block'">
+      <span id="fallback-logo">STRIX</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <a href="index.html" class="nav-back">← Lobby</a>
+    </div>
+    <div class="topbar-right">
+      <div class="balance-pill">
+        <span class="balance-label">Balance</span>
+        <span class="balance-amount" id="balanceDisplay">—</span>
+      </div>
+      <div class="user-btn" onclick="logOut()"><span id="usernameDisplay">…</span></div>
+    </div>
+  </div>
+
+  <!-- GAME LAYOUT -->
+  <div class="game-container">
+    <!-- LEFT PANEL: MATCHMAKING -->
+    <div class="side-panel" id="leftPanel">
+      <div class="panel-header">Matchmaking</div>
+      <div id="matchmakingPanel">
+        <div class="bet-selector">
+          <div class="bet-label">Bet Amount ($)</div>
+          <input type="number" class="bet-input" id="betInput" min="10" step="10" value="50" placeholder="Min $10">
+          <div class="quick-bets">
+            <button class="quick-bet" onclick="setBet(10)">$10</button>
+            <button class="quick-bet" onclick="setBet(50)">$50</button>
+            <button class="quick-bet" onclick="setBet(100)">$100</button>
+            <button class="quick-bet" onclick="setBet(250)">$250</button>
+            <button class="quick-bet" onclick="setBet(500)">$500</button>
+            <button class="quick-bet" onclick="setBet(1000)">$1K</button>
+          </div>
+        </div>
+        <button class="btn-primary" id="findMatchBtn" onclick="findMatch()">Find Match</button>
+        <button class="btn-cancel" id="cancelMatchBtn" onclick="cancelMatch()" style="display:none;">Cancel Search</button>
+        <div class="status-msg" id="statusMsg">Set your bet and find a match</div>
+      </div>
+      <div id="gameInfoPanel" style="display:none;">
+        <div class="game-info">
+          <div class="info-row">
+            <span class="info-label">Pot</span>
+            <span class="info-value" id="potAmount">$0</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Your Bet</span>
+            <span class="info-value" id="yourBet">$0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: BOARD -->
+    <div class="board-container">
+      <div class="turn-indicator" id="turnIndicator">Waiting...</div>
+      <canvas id="carromCanvas" width="800" height="800"></canvas>
+      <div class="power-meter" id="powerMeter"><div class="power-fill" id="powerFill"></div></div>
+    </div>
+
+    <!-- RIGHT PANEL: PLAYERS & LOG -->
+    <div class="side-panel">
+      <div class="panel-header">Players</div>
+      <div id="playersPanel">
+        <div class="player-card" id="player1Card">
+          <div class="player-name" id="player1Name">Waiting...</div>
+          <div class="player-pucks" id="player1Pucks">9 pucks left</div>
+        </div>
+        <div class="player-card" id="player2Card">
+          <div class="player-name" id="player2Name">Waiting...</div>
+          <div class="player-pucks" id="player2Pucks">9 pucks left</div>
+        </div>
+      </div>
+      <div class="panel-header" style="margin-top:20px;">Game Log</div>
+      <div class="log-panel" id="logPanel"></div>
+    </div>
+  </div>
+</div>
+</main>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+const SERVER_URL = window.location.hostname === 'localhost'
+  ? 'https://strix-1xlv.onrender.com'
+  : 'https://strix-1xlv.onrender.com';
+
+// ── AUTH ──────────────────────────────────────────────────────
+let authToken = localStorage.getItem('strix_token');
+let currentUser = null;
+
+function switchTab(tab) {
+  document.getElementById('loginForm').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('authError').textContent = '';
+}
+
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (!u || !p) { document.getElementById('authError').textContent = 'Fill in all fields'; return; }
+  try {
+    const r = await fetch(SERVER_URL + '/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u,password:p}) });
+    const d = await r.json();
+    if (!r.ok) { document.getElementById('authError').textContent = d.error || 'Login failed'; return; }
+    onAuthSuccess(d);
+  } catch (e) { document.getElementById('authError').textContent = 'Cannot connect to server'; }
+}
+
+async function doRegister() {
+  const u = document.getElementById('regUser').value.trim();
+  const p = document.getElementById('regPass').value;
+  const p2 = document.getElementById('regPass2').value;
+  if (!u || !p || !p2) { document.getElementById('authError').textContent = 'Fill in all fields'; return; }
+  if (p !== p2) { document.getElementById('authError').textContent = 'Passwords do not match'; return; }
+  try {
+    const r = await fetch(SERVER_URL + '/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u,password:p}) });
+    const d = await r.json();
+    if (!r.ok) { document.getElementById('authError').textContent = d.error || 'Registration failed'; return; }
+    onAuthSuccess(d);
+  } catch (e) { document.getElementById('authError').textContent = 'Cannot connect to server'; }
+}
+
+function onAuthSuccess(data) {
+  authToken = data.token;
+  currentUser = { username: data.username, balance: data.balance };
+  localStorage.setItem('strix_token', authToken);
+  document.getElementById('authOverlay').classList.add('hidden');
+  document.getElementById('usernameDisplay').textContent = data.username;
+  document.getElementById('balanceDisplay').textContent = fmtBalance(data.balance);
+  socket.emit('auth', authToken);
+}
+
+function logOut() {
+  localStorage.removeItem('strix_token');
+  location.reload();
+}
+
+function fmtBalance(n) { return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ── SOCKET ────────────────────────────────────────────────────
+const socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+
+socket.on('connect', () => {
+  if (authToken) socket.emit('auth', authToken);
+});
+
+socket.on('auth_ok', (data) => {
+  currentUser = data;
+  document.getElementById('authOverlay').classList.add('hidden');
+  document.getElementById('usernameDisplay').textContent = data.username;
+  document.getElementById('balanceDisplay').textContent = fmtBalance(data.balance);
+});
+
+socket.on('auth_error', (msg) => {
+  localStorage.removeItem('strix_token');
+  authToken = null;
+  document.getElementById('authOverlay').classList.remove('hidden');
+  document.getElementById('authError').textContent = msg;
+});
+
+// ── MATCHMAKING ───────────────────────────────────────────────
+let gameState = null;
+let myPlayerNum = null;
+
+function setBet(amount) {
+  document.getElementById('betInput').value = amount;
+}
+
+function findMatch() {
+  const bet = parseFloat(document.getElementById('betInput').value);
+  if (!bet || bet < 10) { alert('Minimum bet is $10'); return; }
+  if (bet > currentUser.balance) { alert('Insufficient balance'); return; }
+  socket.emit('carrom_find_match', { bet });
+  document.getElementById('findMatchBtn').style.display = 'none';
+  document.getElementById('cancelMatchBtn').style.display = 'block';
+  document.getElementById('statusMsg').textContent = 'Searching for opponent...';
+  document.getElementById('statusMsg').className = 'status-msg waiting';
+}
+
+function cancelMatch() {
+  socket.emit('carrom_cancel_match');
+  document.getElementById('findMatchBtn').style.display = 'block';
+  document.getElementById('cancelMatchBtn').style.display = 'none';
+  document.getElementById('statusMsg').textContent = 'Search cancelled';
+  document.getElementById('statusMsg').className = 'status-msg';
+}
+
+socket.on('carrom_match_found', ({ gameId, playerNum, state }) => {
+  gameState = state;
+  myPlayerNum = playerNum;
+  document.getElementById('matchmakingPanel').style.display = 'none';
+  document.getElementById('gameInfoPanel').style.display = 'block';
+  document.getElementById('potAmount').textContent = '$' + (state.pot || 0);
+  document.getElementById('yourBet').textContent = '$' + (state.bet || 0);
+  updateGameUI(state);
+  addLog(`Match found! You are ${playerNum === 1 ? 'WHITE' : 'BLACK'} pucks`);
+  initBoard(state);
+});
+
+socket.on('carrom_state', (state) => {
+  gameState = state;
+  updateGameUI(state);
+  renderBoard(state);
+});
+
+socket.on('carrom_game_over', ({ winner, pot, balance }) => {
+  const won = winner === myPlayerNum;
+  document.getElementById('balanceDisplay').textContent = fmtBalance(balance);
+  currentUser.balance = balance;
+  showResult(won, pot);
+  addLog(won ? `🏆 YOU WON! +$${pot}` : `You lost -$${gameState.bet}`, won ? 'win' : 'lose');
+});
+
+socket.on('carrom_opponent_left', () => {
+  addLog('Opponent disconnected — you win by default!');
+  setTimeout(() => location.reload(), 3000);
+});
+
+socket.on('error_msg', (msg) => {
+  alert(msg);
+});
+
+function updateGameUI(state) {
+  const p1 = state.players[1];
+  const p2 = state.players[2];
+  document.getElementById('player1Name').textContent = p1 ? p1.username : 'Waiting...';
+  document.getElementById('player2Name').textContent = p2 ? p2.username : 'Waiting...';
+  
+  const p1Pucks = state.pucks.filter(p => p.owner === 1 && !p.pocketed).length;
+  const p2Pucks = state.pucks.filter(p => p.owner === 2 && !p.pocketed).length;
+  document.getElementById('player1Pucks').textContent = `${p1Pucks} pucks left`;
+  document.getElementById('player2Pucks').textContent = `${p2Pucks} pucks left`;
+  
+  const hasQueen1 = state.players[1]?.hasQueen;
+  const hasQueen2 = state.players[2]?.hasQueen;
+  if (hasQueen1) document.getElementById('player1Pucks').innerHTML += ' <span class="red">👑</span>';
+  if (hasQueen2) document.getElementById('player2Pucks').innerHTML += ' <span class="red">👑</span>';
+  
+  document.getElementById('player1Card').classList.toggle('active', state.turn === 1);
+  document.getElementById('player2Card').classList.toggle('active', state.turn === 2);
+  
+  const turnInd = document.getElementById('turnIndicator');
+  if (state.turn === myPlayerNum) {
+    turnInd.textContent = 'YOUR TURN — Drag striker to shoot';
+    turnInd.className = 'turn-indicator my-turn';
+  } else {
+    turnInd.textContent = "Opponent's Turn";
+    turnInd.className = 'turn-indicator opponent-turn';
+  }
+}
+
+function addLog(msg, type = '') {
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.innerHTML = msg;
+  document.getElementById('logPanel').prepend(entry);
+}
+
+function showResult(won, amount) {
+  const box = document.getElementById('resultBox');
+  box.className = 'result-box ' + (won ? 'win-box' : 'loss-box');
+  document.getElementById('resultLabel').textContent = won ? 'Victory' : 'Defeat';
+  document.getElementById('resultHeadline').textContent = won ? 'YOU WIN' : 'YOU LOSE';
+  document.getElementById('resultAmount').textContent = won ? '+$' + amount : '-$' + gameState.bet;
+  document.getElementById('resultOverlay').classList.add('show');
+}
+
+document.getElementById('continueBtn').addEventListener('click', () => {
+  location.href = 'index.html';
+});
+
+// ── BOARD & PHYSICS ───────────────────────────────────────────
+const canvas = document.getElementById('carromCanvas');
+const ctx = canvas.getContext('2d');
+const BOARD_SIZE = 800;
+const POCKET_RADIUS = 25;
+const PUCK_RADIUS = 15;
+const STRIKER_RADIUS = 18;
+const FRICTION = 0.98;
+const RESTITUTION = 0.85;
+
+let striker = null;
+let isDragging = false;
+let dragStart = null;
+let shootPower = 0;
+
+const images = {
+  striker: new Image(),
+  pukWhite: new Image(),
+  pukBlack: new Image(),
+  pukRed: new Image()
+};
+images.striker.src = 'Carrom/disk_white.png';
+images.pukWhite.src = 'Carrom/Puks/puk_white.png';
+images.pukBlack.src = 'Carrom/Puks/puk_black.png';
+images.pukRed.src = 'Carrom/Puks/puk_red.png';
+
+const sounds = {
+  hit: new Audio('Carrom/hit_carrom_vfx.flac'),
+  hole: new Audio('Carrom/hole_carrom_vfx.flac')
+};
+
+function initBoard(state) {
+  renderBoard(state);
+  
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('touchstart', onTouchStart);
+  canvas.addEventListener('touchmove', onTouchMove);
+  canvas.addEventListener('touchend', onTouchEnd);
+}
+
+function renderBoard(state) {
+  if (!state) return;
+  
+  ctx.fillStyle = '#d4a574';
+  ctx.fillRect(0, 0, BOARD_SIZE, BOARD_SIZE);
+  
+  // Border
+  ctx.strokeStyle = '#8b6f47';
+  ctx.lineWidth = 20;
+  ctx.strokeRect(10, 10, BOARD_SIZE - 20, BOARD_SIZE - 20);
+  
+  // Center circle
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(BOARD_SIZE / 2, BOARD_SIZE / 2, 60, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Pockets
+  const pockets = [
+    { x: 40, y: 40 }, { x: BOARD_SIZE - 40, y: 40 },
+    { x: 40, y: BOARD_SIZE - 40 }, { x: BOARD_SIZE - 40, y: BOARD_SIZE - 40 }
+  ];
+  ctx.fillStyle = '#000';
+  pockets.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, POCKET_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  
+  // Baseline (striker line)
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  const baseline = myPlayerNum === 1 ? BOARD_SIZE - 100 : 100;
+  ctx.beginPath();
+  ctx.moveTo(100, baseline);
+  ctx.lineTo(BOARD_SIZE - 100, baseline);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Pucks
+  state.pucks.forEach(p => {
+    if (p.pocketed) return;
+    const img = p.type === 'red' ? images.pukRed : (p.owner === 1 ? images.pukWhite : images.pukBlack);
+    ctx.drawImage(img, p.x - PUCK_RADIUS, p.y - PUCK_RADIUS, PUCK_RADIUS * 2, PUCK_RADIUS * 2);
+  });
+  
+  // Striker
+  if (state.striker && !state.striker.active) {
+    striker = { ...state.striker };
+    ctx.drawImage(images.striker, striker.x - STRIKER_RADIUS, striker.y - STRIKER_RADIUS, STRIKER_RADIUS * 2, STRIKER_RADIUS * 2);
+  } else if (state.striker && state.striker.active) {
+    ctx.drawImage(images.striker, state.striker.x - STRIKER_RADIUS, state.striker.y - STRIKER_RADIUS, STRIKER_RADIUS * 2, STRIKER_RADIUS * 2);
+  }
+  
+  // Drag line
+  if (isDragging && dragStart && striker) {
+    ctx.strokeStyle = 'rgba(132, 204, 22, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(striker.x, striker.y);
+    ctx.lineTo(dragStart.x, dragStart.y);
+    ctx.stroke();
+    
+    // Power indicator
+    const power = Math.min(Math.sqrt(Math.pow(dragStart.x - striker.x, 2) + Math.pow(dragStart.y - striker.y, 2)) / 200, 1);
+    document.getElementById('powerMeter').classList.add('show');
+    document.getElementById('powerFill').style.width = (power * 100) + '%';
+  }
+}
+
+function onMouseDown(e) {
+  if (!gameState || gameState.turn !== myPlayerNum || gameState.striker.active) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (BOARD_SIZE / rect.width);
+  const y = (e.clientY - rect.top) * (BOARD_SIZE / rect.height);
+  
+  if (striker && Math.sqrt(Math.pow(x - striker.x, 2) + Math.pow(y - striker.y, 2)) < STRIKER_RADIUS) {
+    isDragging = true;
+    dragStart = { x, y };
+  }
+}
+
+function onMouseMove(e) {
+  if (!isDragging || !striker) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (BOARD_SIZE / rect.width);
+  const y = (e.clientY - rect.top) * (BOARD_SIZE / rect.height);
+  dragStart = { x, y };
+  renderBoard(gameState);
+}
+
+function onMouseUp(e) {
+  if (!isDragging || !striker || !dragStart) return;
+  isDragging = false;
+  document.getElementById('powerMeter').classList.remove('show');
+  
+  const dx = striker.x - dragStart.x;
+  const dy = striker.y - dragStart.y;
+  const power = Math.min(Math.sqrt(dx * dx + dy * dy) / 100, 2);
+  
+  socket.emit('carrom_shoot', { vx: dx * power, vy: dy * power });
+  dragStart = null;
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  onMouseDown({ clientX: touch.clientX, clientY: touch.clientY });
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  onMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+}
+
+function onTouchEnd(e) {
+  e.preventDefault();
+  onMouseUp({});
+}
+
+socket.on('carrom_collision', () => {
+  sounds.hit.currentTime = 0;
+  sounds.hit.play().catch(() => {});
+});
+
+socket.on('carrom_pocketed', ({ type, owner }) => {
+  sounds.hole.currentTime = 0;
+  sounds.hole.play().catch(() => {});
+  const typeLabel = type === 'red' ? '👑 QUEEN' : (owner === 1 ? 'WHITE' : 'BLACK') + ' puck';
+  addLog(`${typeLabel} pocketed!`);
+});
+
+// ── INIT ──────────────────────────────────────────────────────
+if (!authToken) {
+  document.getElementById('authOverlay').classList.remove('hidden');
+}
+
+document.getElementById('loginPass').addEventListener('keyup', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keyup', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
