@@ -498,18 +498,370 @@ async function finishRace(race) {
 }
 
 // ── CARROM GAME ───────────────────────────────────────────────
-const carromGames = new Map(); // gameId -> game state
-const carromQueue = []; // waiting players: { socketId, username, userId, bet }
+const carromGames = new Map();
+const carromQueue = [];
 let carromGameCounter = 0;
 
-const BOARD_SIZE = 800;
-const POCKET_RADIUS = 25;
-const PUCK_RADIUS = 15;
-const STRIKER_RADIUS = 18;
-const FRICTION = 0.98;
-const RESTITUTION = 0.85;
-const BASELINE_Y = 100;
-const BASELINE_SPACING = 100;
+const BOARD_SIZE = 900;
+const MARGIN = 60;
+const PLAY_AREA = BOARD_SIZE - MARGIN * 2;
+const POCKET_SIZE = 50;
+const PUCK_RADIUS = 18;
+const STRIKER_RADIUS = 26;
+const FRICTION = 0.985;
+const RESTITUTION = 0.88;
+const BASELINE_Y = MARGIN + 80;
+
+function createCarromGame(p1, p2, bet) {
+  const gameId = ++carromGameCounter;
+  const centerX = BOARD_SIZE / 2;
+  const centerY = BOARD_SIZE / 2;
+  const pucks = [];
+  
+  pucks.push({ id: 0, type: 'red', owner: 0, x: centerX, y: centerY, vx: 0, vy: 0, pocketed: false });
+  
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 9) * Math.PI * 2;
+    const radius = 50 + (i % 3) * 22;
+    pucks.push({
+      id: i + 1, type: 'white', owner: 1,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      vx: 0, vy: 0, pocketed: false
+    });
+  }
+  
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 9) * Math.PI * 2 + Math.PI / 9;
+    const radius = 60 + (i % 3) * 22;
+    pucks.push({
+      id: i + 10, type: 'black', owner: 2,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      vx: 0, vy: 0, pocketed: false
+    });
+  }
+  
+  const game = {
+    id: gameId,
+    players: {
+      1: { socketId: p1.socketId, username: p1.username, userId: p1.userId, hasQueen: false },
+      2: { socketId: p2.socketId, username: p2.username, userId: p2.userId, hasQueen: false }
+    },
+    turn: 1,
+    bet,
+    pot: bet * 2,
+    pucks,
+    striker: { x: centerX, y: BOARD_SIZE - BASELINE_Y, vx: 0, vy: 0, active: false },
+    tickTimer: null,
+    lastPocket: null,
+    fouls: { 1: 0, 2: 0 }
+  };
+  
+  carromGames.set(gameId, game);
+  return game;
+}
+
+function publicCarromState(game) {
+  return {
+    id: game.id,
+    players: game.players,
+    turn: game.turn,
+    bet: game.bet,
+    pot: game.pot,
+    pucks: game.pucks.map(p => ({ ...p, vx: undefined, vy: undefined })),
+    striker: { x: game.striker.x, y: game.striker.y, active: game.striker.active }
+  };
+}
+
+function stepCarromPhysics(game) {
+  const allObjects = [...game.pucks.filter(p => !p.pocketed), game.striker].filter(o => o.active || o.vx !== 0 || o.vy !== 0);
+  
+  let hasMovement = false;
+  let collisionOccurred = false;
+  
+  allObjects.forEach(obj => {
+    obj.x += obj.vx;
+    obj.y += obj.vy;
+    obj.vx *= FRICTION;
+    obj.vy *= FRICTION;
+    
+    if (Math.abs(obj.vx) < 0.01) obj.vx = 0;
+    if (Math.abs(obj.vy) < 0.01) obj.vy = 0;
+    
+    if (obj.vx !== 0 || obj.vy !== 0) hasMovement = true;
+    
+    const radius = obj === game.striker ? STRIKER_RADIUS : PUCK_RADIUS;
+    if (obj.x - radius < MARGIN) { obj.x = MARGIN + radius; obj.vx = -obj.vx * RESTITUTION; collisionOccurred = true; }
+    if (obj.x + radius > BOARD_SIZE - MARGIN) { obj.x = BOARD_SIZE - MARGIN - radius; obj.vx = -obj.vx * RESTITUTION; collisionOccurred = true; }
+    if (obj.y - radius < MARGIN) { obj.y = MARGIN + radius; obj.vy = -obj.vy * RESTITUTION; collisionOccurred = true; }
+    if (obj.y + radius > BOARD_SIZE - MARGIN) { obj.y = BOARD_SIZE - MARGIN - radius; obj.vy = -obj.vy * RESTITUTION; collisionOccurred = true; }
+  });
+  
+  for (let i = 0; i < allObjects.length; i++) {
+    for (let j = i + 1; j < allObjects.length; j++) {
+      const a = allObjects[i];
+      const b = allObjects[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = ((a === game.striker ? STRIKER_RADIUS : PUCK_RADIUS) + (b === game.striker ? STRIKER_RADIUS : PUCK_RADIUS));
+      
+      if (dist < minDist && dist > 0) {
+        collisionOccurred = true;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const overlap = minDist - dist;
+        a.x -= nx * overlap / 2;
+        a.y -= ny * overlap / 2;
+        b.x += nx * overlap / 2;
+        b.y += ny * overlap / 2;
+        
+        const dvx = a.vx - b.vx;
+        const dvy = a.vy - b.vy;
+        const dot = dvx * nx + dvy * ny;
+        
+        if (dot > 0) {
+          a.vx -= dot * nx * RESTITUTION;
+          a.vy -= dot * ny * RESTITUTION;
+          b.vx += dot * nx * RESTITUTION;
+          b.vy += dot * ny * RESTITUTION;
+        }
+      }
+    }
+  }
+  
+  const pockets = [
+    { x: MARGIN, y: MARGIN }, { x: BOARD_SIZE - MARGIN, y: MARGIN },
+    { x: MARGIN, y: BOARD_SIZE - MARGIN }, { x: BOARD_SIZE - MARGIN, y: BOARD_SIZE - MARGIN }
+  ];
+  
+  game.pucks.forEach(puck => {
+    if (puck.pocketed) return;
+    pockets.forEach(pocket => {
+      const dx = puck.x - pocket.x;
+      const dy = puck.y - pocket.y;
+      if (Math.abs(dx) < POCKET_SIZE && Math.abs(dy) < POCKET_SIZE) {
+        puck.pocketed = true;
+        puck.vx = 0;
+        puck.vy = 0;
+        game.lastPocket = { type: puck.type, owner: puck.owner };
+        io.to(game.players[1].socketId).emit('carrom_pocketed', { type: puck.type, owner: puck.owner });
+        io.to(game.players[2].socketId).emit('carrom_pocketed', { type: puck.type, owner: puck.owner });
+      }
+    });
+  });
+  
+  if (game.striker.active) {
+    pockets.forEach(pocket => {
+      const dx = game.striker.x - pocket.x;
+      const dy = game.striker.y - pocket.y;
+      if (Math.abs(dx) < POCKET_SIZE && Math.abs(dy) < POCKET_SIZE) {
+        game.striker.active = false;
+        game.striker.vx = 0;
+        game.striker.vy = 0;
+        game.fouls[game.turn]++;
+      }
+    });
+  }
+  
+  if (collisionOccurred) {
+    io.to(game.players[1].socketId).emit('carrom_collision');
+    io.to(game.players[2].socketId).emit('carrom_collision');
+  }
+  
+  return hasMovement;
+}
+
+function endCarromTurn(game) {
+  if (game.tickTimer) { clearInterval(game.tickTimer); game.tickTimer = null; }
+  game.striker.active = false;
+  
+  let continuesTurn = false;
+  if (game.lastPocket) {
+    const currentPlayer = game.turn;
+    if (game.lastPocket.type === 'red') {
+      game.players[currentPlayer].hasQueen = true;
+      continuesTurn = true;
+    } else if (game.lastPocket.owner === currentPlayer) {
+      continuesTurn = true;
+    }
+  }
+  game.lastPocket = null;
+  
+  const p1Pucks = game.pucks.filter(p => p.owner === 1 && !p.pocketed).length;
+  const p2Pucks = game.pucks.filter(p => p.owner === 2 && !p.pocketed).length;
+  
+  if (p1Pucks === 0) { endCarromGame(game, 1); return; }
+  if (p2Pucks === 0) { endCarromGame(game, 2); return; }
+  
+  if (!continuesTurn) game.turn = game.turn === 1 ? 2 : 1;
+  
+  const baselineY = game.turn === 1 ? BOARD_SIZE - BASELINE_Y : BASELINE_Y;
+  game.striker.x = BOARD_SIZE / 2 + (Math.random() - 0.5) * 240;
+  game.striker.y = baselineY;
+  game.striker.vx = 0;
+  game.striker.vy = 0;
+  
+  broadcastCarromState(game);
+}
+
+function endCarromGame(game, winner) {
+  if (game.tickTimer) clearInterval(game.tickTimer);
+  const db = readDB();
+  Object.values(game.players).forEach((player, idx) => {
+    const playerNum = idx + 1;
+    const user = db.users.find(u => u.id === player.userId);
+    if (!user) return;
+    if (playerNum === winner) {
+      user.balance += game.pot;
+      io.to(player.socketId).emit('carrom_game_over', { winner, pot: game.pot, balance: user.balance });
+    } else {
+      io.to(player.socketId).emit('carrom_game_over', { winner, pot: 0, balance: user.balance });
+    }
+  });
+  writeDB(db);
+  carromGames.delete(game.id);
+}
+
+function broadcastCarromState(game) {
+  const state = publicCarromState(game);
+  io.to(game.players[1].socketId).emit('carrom_state', state);
+  io.to(game.players[2].socketId).emit('carrom_state', state);
+}
+
+// ── ROULETTE GAME ─────────────────────────────────────────────
+const ROULETTE_NUMBERS = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+const RED_NUMBERS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+const BETTING_TIME = 30; // seconds
+const SPINNING_TIME = 8; // seconds
+
+let rouletteState = {
+  phase: 'betting', // betting, spinning, results
+  timeLeft: BETTING_TIME,
+  winningNumber: null,
+  players: [], // { socketId, username, userId, bets: {}, totalBet: 0 }
+  recentNumbers: [],
+  stats: { spins: 0, totalBet: 0, lastPayout: 0 }
+};
+
+let rouletteTimer = null;
+
+function startRouletteCycle() {
+  rouletteState.phase = 'betting';
+  rouletteState.timeLeft = BETTING_TIME;
+  broadcastRouletteState();
+  
+  rouletteTimer = setInterval(() => {
+    if (rouletteState.phase === 'betting') {
+      rouletteState.timeLeft--;
+      if (rouletteState.timeLeft <= 0) {
+        spinRoulette();
+      } else {
+        broadcastRouletteState();
+      }
+    }
+  }, 1000);
+}
+
+function spinRoulette() {
+  clearInterval(rouletteTimer);
+  rouletteState.phase = 'spinning';
+  const winningNumber = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)];
+  rouletteState.winningNumber = winningNumber;
+  rouletteState.recentNumbers.unshift(winningNumber);
+  if (rouletteState.recentNumbers.length > 100) rouletteState.recentNumbers.pop();
+  
+  io.emit('roulette_spin_start', { number: winningNumber });
+  
+  setTimeout(() => {
+    processRouletteResults(winningNumber);
+  }, SPINNING_TIME * 1000);
+}
+
+function processRouletteResults(winningNumber) {
+  const db = readDB();
+  const stats = readStats();
+  let totalPayout = 0;
+  
+  rouletteState.players.forEach(player => {
+    if (!player.bets || Object.keys(player.bets).length === 0) return;
+    
+    const user = db.users.find(u => u.id === player.userId);
+    if (!user) return;
+    
+    let playerWinnings = 0;
+    
+    Object.entries(player.bets).forEach(([betId, betData]) => {
+      if (betData.numbers.includes(winningNumber)) {
+        const payout = calculatePayout(betData.amount, betData.numbers.length);
+        playerWinnings += payout;
+      }
+    });
+    
+    if (playerWinnings > 0) {
+      user.balance += playerWinnings;
+      totalPayout += playerWinnings;
+      io.to(player.socketId).emit('roulette_result', {
+        number: winningNumber,
+        winnings: playerWinnings,
+        balance: user.balance
+      });
+    } else {
+      io.to(player.socketId).emit('roulette_result', {
+        number: winningNumber,
+        winnings: 0,
+        balance: user.balance
+      });
+    }
+    
+    player.bets = {};
+    player.totalBet = 0;
+  });
+  
+  writeDB(db);
+  rouletteState.stats.spins++;
+  rouletteState.stats.lastPayout = totalPayout;
+  rouletteState.phase = 'results';
+  
+  setTimeout(() => {
+    io.emit('roulette_betting_open');
+    startRouletteCycle();
+  }, 5000);
+}
+
+function calculatePayout(bet, numbersCount) {
+  const odds = {
+    1: 36,    // straight
+    2: 18,    // split
+    3: 12,    // street
+    4: 9,     // corner
+    6: 6,     // line
+    12: 3,    // dozen/column
+    18: 2     // red/black/odd/even/high/low
+  };
+  const multiplier = odds[numbersCount] || 1;
+  return bet * multiplier;
+}
+
+function broadcastRouletteState() {
+  io.emit('roulette_state', {
+    phase: rouletteState.phase,
+    timeLeft: rouletteState.timeLeft,
+    winningNumber: rouletteState.winningNumber,
+    players: rouletteState.players.map(p => ({
+      username: p.username,
+      totalBet: p.totalBet
+    })),
+    recentNumbers: rouletteState.recentNumbers,
+    stats: rouletteState.stats
+  });
+}
+
+// Start roulette cycle
+startRouletteCycle();
+
+// ── SOCKET.IO ─────────────────────────────────────────────────
 
 function createCarromGame(p1, p2, bet) {
   const gameId = ++carromGameCounter;
@@ -794,6 +1146,50 @@ io.on('connection', (socket) => {
     io.emit('active_count', connectedUsers.size);
   });
 
+  // ── ROULETTE HANDLERS ─────────────────────────────────────
+  socket.on('roulette_join', () => {
+    if (!currentUser) return;
+    
+    // Add to players list if not already there
+    if (!rouletteState.players.find(p => p.socketId === socket.id)) {
+      rouletteState.players.push({
+        socketId: socket.id,
+        username: currentUser.username,
+        userId: currentUser.id,
+        bets: {},
+        totalBet: 0
+      });
+    }
+    
+    broadcastRouletteState();
+  });
+  
+  socket.on('roulette_place_bets', ({ bets }) => {
+    if (!currentUser || rouletteState.phase !== 'betting') return;
+    
+    const player = rouletteState.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+    
+    const totalBet = Object.values(bets).reduce((sum, b) => sum + b.amount, 0);
+    const db = readDB();
+    const user = db.users.find(u => u.id === currentUser.id);
+    if (!user || user.balance < totalBet) {
+      socket.emit('error_msg', 'Insufficient balance');
+      return;
+    }
+    
+    user.balance -= totalBet;
+    writeDB(db);
+    
+    player.bets = bets;
+    player.totalBet = totalBet;
+    
+    rouletteState.stats.totalBet += totalBet;
+    
+    socket.emit('roulette_bet_confirmed', { balance: user.balance });
+    broadcastRouletteState();
+  });
+
   // ── CARROM HANDLERS ───────────────────────────────────────
   socket.on('carrom_find_match', ({ bet }) => {
     if (!currentUser) return;
@@ -989,6 +1385,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    // Handle Roulette disconnect
+    const rIdx = rouletteState.players.findIndex(p => p.socketId === socket.id);
+    if (rIdx !== -1) {
+      const player = rouletteState.players[rIdx];
+      // Refund bets if in betting phase
+      if (rouletteState.phase === 'betting' && player.totalBet > 0) {
+        const db = readDB();
+        const user = db.users.find(u => u.id === player.userId);
+        if (user) {
+          user.balance += player.totalBet;
+          writeDB(db);
+        }
+      }
+      rouletteState.players.splice(rIdx, 1);
+      broadcastRouletteState();
+    }
+    
     // Handle Carrom disconnect
     if (currentCarromGame) {
       const game = carromGames.get(currentCarromGame);
