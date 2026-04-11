@@ -473,15 +473,15 @@ const RL_ORDER=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1
 const RED_SET=new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 
 // ── CHIPS ─────────────────────────────────────────────────────
-const chips = [
-  { v: 5, img: 'Chips/chip_5.png', lbl: '5', fb: CHIP_FB[0] },
-  { v: 10, img: 'Chips/chip_10.png', lbl: '10', fb: CHIP_FB[1] },
-  { v: 25, img: 'Chips/chip_25.png', lbl: '25', fb: CHIP_FB[2] },
-  { v: 50, img: 'Chips/chip_50.png', lbl: '50', fb: CHIP_FB[3] },
-  { v: 100, img: 'Chips/chip_100.png', lbl: '100', fb: CHIP_FB[4] },
-  { v: 200, img: 'Chips/chip_200.png', lbl: '200', fb: CHIP_FB[5] },
-  { v: 1000, img: 'Chips/chip_1000.png', lbl: '1K', fb: CHIP_FB[6] },
-  { v: 2000, img: 'Chips/chip_2000.png', lbl: '2K', fb: CHIP_FB[7] }
+const chips=[
+  {value:5,  src:'Chips/chip_5.png'},
+  {value:10, src:'Chips/chip_10.png'},
+  {value:25, src:'Chips/chip_25.png'},
+  {value:50, src:'Chips/chip_50.png'},
+  {value:100,src:'Chips/chip_100.png'},
+  {value:200,src:'Chips/chip_200.png'},
+  {value:1000,src:'Chips/chip_1000.png'},
+  {value:2000,src:'Chips/chip_2000.png'}
 ];
 const CHIP_FB=['#e74c3c','#2980b9','#27ae60','#8e44ad','#2c3e50','#c0392b','#d4ac0d','#1abc9c'];
 const AVATAR_COLORS=['#84cc16','#38bdf8','#f59e0b','#a78bfa','#ef4444'];
@@ -572,11 +572,11 @@ function buildChips(){
   chips.forEach((ch,i)=>{
     const d=document.createElement('div');
     d.className='chip-btn'+(i===0?' active':'');
-    d.dataset.v=ch.v;
-    d.onclick=()=>{chipVal=ch.v;document.querySelectorAll('.chip-btn').forEach(b=>b.classList.remove('active'));d.classList.add('active');};
-    d.innerHTML=`<img class="chip-img" src="${ch.img}" alt="${ch.lbl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-    <div class="chip-fallback" style="background:${ch.fb};">${ch.lbl}</div>
-    <div class="chip-lbl">${ch.lbl}</div>`;
+    d.onclick=()=>{chipVal=ch.value;document.querySelectorAll('.chip-btn').forEach(b=>b.classList.remove('active'));d.classList.add('active');};
+    const lbl=ch.value>=1000?'$'+(ch.value/1000)+'K':'$'+ch.value;
+    d.innerHTML=`<img class="chip-img" src="${ch.src}" alt="${lbl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="chip-fallback" style="background:${CHIP_FB[i]};">${lbl}</div>
+    <div class="chip-lbl">${lbl}</div>`;
     g.appendChild(d);
   });
   chipVal=5;
@@ -617,21 +617,29 @@ function bet(key){
   if(spinning)return;
   if(balance<chipVal){showToast('Insufficient balance','lose',`Need $${chipVal}`);return;}
   balance-=chipVal;bets[key]=(bets[key]||0)+chipVal;betHist.push({key,v:chipVal});
+  updateTableHasBet(true);
   refreshUI();
+  checkAllBet();
 }
 function undoLast(){
   if(!betHist.length)return;
-  const l=betHist.pop();balance+=l.v;bets[l.key]-=l.v;if(bets[l.key]<=0)delete bets[l.key];refreshUI();
+  const l=betHist.pop();balance+=l.v;bets[l.key]-=l.v;if(bets[l.key]<=0)delete bets[l.key];
+  if(!Object.values(bets).some(v=>v>0))updateTableHasBet(false);
+  refreshUI();
 }
 function clearBets(){
-  let t=0;for(const k in bets)t+=bets[k];balance+=t;bets={};betHist=[];refreshUI();
+  let t=0;for(const k in bets)t+=bets[k];balance+=t;bets={};betHist=[];
+  updateTableHasBet(false);
+  refreshUI();
 }
 function doRebet(){
   if(!Object.keys(lastBets).length){showToast('No previous bet','lose','Place a bet first');return;}
   let cost=0;for(const k in lastBets)cost+=lastBets[k];
   if(balance<cost){showToast('Insufficient balance','lose',`Need $${cost}`);return;}
   for(const k in lastBets){balance-=lastBets[k];bets[k]=(bets[k]||0)+lastBets[k];}
+  updateTableHasBet(true);
   refreshUI();
+  checkAllBet();
 }
 function refreshUI(){
   document.getElementById('balDisp').textContent=fmtB(balance);
@@ -693,7 +701,23 @@ function doSpin(){
   if(spinning)return;
   const total=Object.values(bets).reduce((a,b)=>a+b,0);
   if(!total){showToast('Place a bet first!','lose','No bets placed');return;}
-  spinning=true;document.getElementById('spinBtn').disabled=true;
+  triggerSpin();
+}
+
+function checkAllBet(){
+  const t=getTable();if(!t||t.players.length<=1)return;
+  // If all players have bet, start timer if not already active
+  checkMultiplayer();
+}
+
+function triggerSpin(){
+  if(spinning)return;
+  const total=Object.values(bets).reduce((a,b)=>a+b,0);
+  if(!total){resetRound();return;}
+  spinning=true;
+  document.getElementById('spinBtn').disabled=true;
+  document.getElementById('mpReadyBtn').disabled=true;
+  stopBetTimer();
   const st=document.getElementById('spinSt');
   st.className='spin-status spinning';st.textContent='No more bets — ball is rolling…';
 
@@ -702,10 +726,10 @@ function doSpin(){
   const arc=2*Math.PI/RL_ORDER.length;
   const midAngle=-Math.PI/2+(idx+.5)*arc;
   const target=wheelRot+2*Math.PI*(5+Math.floor(Math.random()*3))+(-midAngle-wheelRot%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-  const dur=4400,t0=performance.now(),r0=wheelRot;
+  const dur=4600,t0=performance.now(),r0=wheelRot;
 
   (function frame(now){
-    const t=Math.min((now-t0)/dur,1),ease=1-Math.pow(1-t,4);
+    const elapsed=now-t0,t=Math.min(elapsed/dur,1),ease=1-Math.pow(1-t,4);
     wheelRot=r0+(target-r0)*ease;drawW(wheelRot);
     if(t<1){requestAnimationFrame(frame);}else{wheelRot=target;drawW(wheelRot);finishSpin(landNum);}
   })(performance.now());
@@ -714,7 +738,7 @@ function doSpin(){
 function finishSpin(num){
   const win=calcPay(num),totalBet=Object.values(bets).reduce((a,b)=>a+b,0);
   balance+=win;history.unshift(num);if(history.length>40)history.pop();
-  lastBets={...bets};bets={};betHist=[];
+  lastBets={...bets};bets={};betHist=[];myReady=false;
 
   const col=numColor(num);
   const rn=document.getElementById('rnCircle');
@@ -726,10 +750,148 @@ function finishSpin(num){
   if(win>0){st.className='spin-status won';st.textContent=`Number ${num} — You won $${win.toLocaleString()}!`;showToast('YOU WIN!','win',`+$${win.toLocaleString()}`);}
   else{st.className='spin-status lost';st.textContent=`Number ${num} — No win this time.`;showToast('NO WIN','lose',`−$${totalBet.toLocaleString()}`);}
 
-  refreshUI();renderHistory();mutateBots();renderPlayers();
+  refreshUI();renderHistory();renderPlayers();
   spinning=false;document.getElementById('spinBtn').disabled=false;
-  setTimeout(()=>{const s=document.getElementById('spinSt');s.className='spin-status';s.textContent='Place your next bet';},4500);
+  setTimeout(resetRound,3000);
   save();
+}
+
+function resetRound(){
+  let t=getTable();
+  if(t){t.timerActive=false;t.timerStart=null;t.players.forEach(p=>{p.hasBet=false;p.ready=false;});setTable(t);}
+  myReady=false;betTimerActive=false;
+  const st=document.getElementById('spinSt');
+  if(st&&!spinning){st.className='spin-status';st.textContent='Place your bets for the next round';}
+  const mpBtn=document.getElementById('mpReadyBtn');
+  if(mpBtn){mpBtn.disabled=true;mpBtn.textContent='Place a bet';}
+  checkMultiplayer();
+}
+
+/* MULTIPLAYER TABLE (localStorage-based cross-tab sync) */
+function getTable(){try{return JSON.parse(localStorage.getItem(tableKey)||'null');}catch(e){return null;}}
+function setTable(t){localStorage.setItem(tableKey,JSON.stringify(t));}
+
+function joinTable(){
+  let t=getTable();
+  if(!t)t={players:[],timerActive:false,timerStart:null};
+  t.players=t.players.filter(p=>p.username!==currentUser);
+  if(t.players.length>=5){showToast('Table full','lose','Max 5 players');return;}
+  t.players.push({username:currentUser,balance,hasBet:false,ready:false,color:AVATAR_COLORS[t.players.length%AVATAR_COLORS.length],joined:Date.now()});
+  setTable(t);
+  renderPlayers();checkMultiplayer();
+  window._tablePoll=setInterval(()=>{renderPlayers();checkMultiplayer();},1500);
+  window.addEventListener('pagehide',leaveTable);
+  window.addEventListener('beforeunload',leaveTable);
+}
+function leaveTable(){
+  clearInterval(window._tablePoll);
+  let t=getTable();if(!t)return;
+  t.players=t.players.filter(p=>p.username!==currentUser);
+  if(!t.players.length)localStorage.removeItem(tableKey);else setTable(t);
+}
+function updateTableHasBet(hasBet){
+  let t=getTable();if(!t)return;
+  const p=t.players.find(p=>p.username===currentUser);
+  if(p){p.hasBet=hasBet;p.balance=balance;}setTable(t);
+}
+function updateTableReady(ready){
+  let t=getTable();if(!t)return;
+  const p=t.players.find(p=>p.username===currentUser);
+  if(p)p.ready=ready;setTable(t);
+}
+
+function checkMultiplayer(){
+  const t=getTable();if(!t)return;
+  const count=t.players.length;
+  renderPlayers();
+  if(count<=1){
+    // Solo: standard spin button
+    hideMpBar();stopBetTimer();
+    document.getElementById('spinBtn').style.display='';
+    document.getElementById('spinBtn').disabled=spinning;
+    return;
+  }
+  // Multiplayer
+  document.getElementById('spinBtn').style.display='none';
+  const mpBar=document.getElementById('mpBar'),mpText=document.getElementById('mpBarText'),mpBtn=document.getElementById('mpReadyBtn');
+  mpBar.classList.add('active');
+  if(spinning){mpText.innerHTML='<strong>Spinning…</strong> No more bets.';mpBtn.disabled=true;return;}
+
+  // Start or sync timer
+  if(!t.timerActive){
+    t.timerActive=true;t.timerStart=Date.now();setTable(t);
+    if(!betTimerActive)startBetTimer(20);
+  } else if(!betTimerActive){
+    const elapsed=Math.floor((Date.now()-t.timerStart)/1000);
+    const rem=Math.max(0,20-elapsed);
+    if(rem>0)startBetTimer(rem);else{stopBetTimer();triggerSpin();return;}
+  }
+
+  const readyCount=t.players.filter(p=>p.ready).length;
+  const allReady=t.players.every(p=>p.ready);
+  const hasBet=Object.values(bets).some(v=>v>0);
+  mpBtn.disabled=!hasBet||myReady;
+  mpBtn.textContent=myReady?'Ready ✓':hasBet?'Ready ✓':'Place a bet first';
+  mpText.innerHTML=`<strong>${readyCount}/${count}</strong> ready · bet timer active`;
+  document.getElementById('readyCount').textContent=readyCount;
+
+  if(allReady&&count>1&&!spinning){stopBetTimer();triggerSpin();}
+}
+
+function markReady(){
+  if(spinning)return;
+  if(!Object.values(bets).some(v=>v>0)){showToast('Place a bet first!','lose','');return;}
+  myReady=true;updateTableReady(true);
+  document.getElementById('mpReadyBtn').disabled=true;
+  document.getElementById('mpReadyBtn').textContent='Ready ✓';
+  checkMultiplayer();
+}
+function hideMpBar(){document.getElementById('mpBar').classList.remove('active');}
+
+/* BET TIMER */
+const CD_TOTAL=169.6;
+function startBetTimer(seconds){
+  if(betTimerActive)return;
+  betTimerActive=true;betTimerVal=seconds;
+  document.getElementById('cdWrap').classList.add('active');
+  updateCountdownRing(seconds);
+  betTimerInterval=setInterval(()=>{
+    betTimerVal--;updateCountdownRing(betTimerVal);
+    if(betTimerVal<=0){stopBetTimer();triggerSpin();}
+  },1000);
+}
+function stopBetTimer(){
+  clearInterval(betTimerInterval);betTimerActive=false;
+  document.getElementById('cdWrap').classList.remove('active');
+}
+function updateCountdownRing(val){
+  document.getElementById('cdNum').textContent=val;
+  document.getElementById('cdNum').className='countdown-num'+(val<=5?' urgent':'');
+  document.getElementById('cdCircle').style.strokeDashoffset=CD_TOTAL*(1-val/20);
+  document.getElementById('cdCircle').style.stroke=val<=5?'var(--red)':'var(--lime-bright)';
+}
+
+/* PLAYERS RENDER */
+function renderPlayers(){
+  const t=getTable();
+  const players=t?t.players:[{username:currentUser,balance,hasBet:false,ready:false,color:AVATAR_COLORS[0]}];
+  const l=document.getElementById('playersList');l.innerHTML='';
+  players.forEach(p=>{
+    const isYou=p.username===currentUser;
+    const ini=(p.username||'P').substring(0,2).toUpperCase();
+    const bal=isYou?balance:(p.balance||0);
+    const div=document.createElement('div');
+    div.className='p-row'+(isYou?' you':'');
+    div.innerHTML=`<div class="avatar" style="background:${p.color};color:${isYou?'#000':'#fff'};font-size:10px;">${ini}</div>
+      <div class="pi">
+        <div class="pname">${p.username}${isYou?' <span style="font-size:9px;color:var(--lime);font-family:\'Orbitron\',monospace;">(YOU)</span>':''}</div>
+        <div class="pbal">$${fmtB(bal)}${p.hasBet?' <span style="color:var(--amber);font-size:9px;">· bet</span>':''}${p.ready?' <span style="color:var(--lime);font-size:9px;">· ready</span>':''}</div>
+      </div>
+      <div class="pdot ${p.ready?'on':'off'}"></div>`;
+    l.appendChild(div);
+  });
+  document.getElementById('seatCnt').textContent=players.length;
+  document.getElementById('readyCount').textContent=players.filter(p=>p.ready).length;
 }
 
 /* HISTORY */
@@ -750,28 +912,6 @@ function renderHistory(){
   }
 }
 
-/* BOTS */
-function setupBots(){
-  const cnt=1+Math.floor(Math.random()*3);
-  botData=BOTS.slice(0,cnt).map(b=>({...b,bal:Math.floor(Math.random()*4000+500),betting:Math.random()>.35,betAmt:Math.floor(Math.random()*300+10)}));
-}
-function mutateBots(){
-  botData.forEach(b=>{
-    const d=Math.floor((Math.random()-.45)*b.betAmt*3);
-    b.bal=Math.max(0,b.bal+d);b.betting=Math.random()>.35;b.betAmt=Math.floor(Math.random()*300+10);
-  });
-}
-function renderPlayers(){
-  const l=document.getElementById('playersList');
-  const ini=(currentUser||'P').substring(0,2).toUpperCase();
-  let h=`<div class="p-row you"><div class="avatar" style="background:var(--lime-bright);color:#000;">${ini}</div><div class="pi"><div class="pname">${currentUser} <span style="font-size:9px;color:var(--lime);font-family:'Orbitron',monospace;">(YOU)</span></div><div class="pbal">$${fmtB(balance)}</div></div><div class="pdot on"></div></div>`;
-  botData.forEach(b=>{
-    const bi=b.name.substring(0,2).toUpperCase();
-    h+=`<div class="p-row"><div class="avatar" style="background:${b.color};color:#fff;">${bi}</div><div class="pi"><div class="pname">${b.name}</div><div class="pbal">$${b.bal.toLocaleString()} ${b.betting?`<span style="color:var(--lime);font-size:9px;">· $${b.betAmt} bet</span>`:''}</div></div><div class="pdot ${b.betting?'on':'off'}"></div></div>`;
-  });
-  l.innerHTML=h;document.getElementById('seatCnt').textContent=1+botData.length;
-}
-
 /* TOAST */
 function showToast(hl,type,am=''){
   const t=document.getElementById('wtx');
@@ -788,7 +928,7 @@ function numColor(n){return n===0?'green':RED_SET.has(n)?'red':'black';}
 function fmtB(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
 /* KEYBOARD */
-document.addEventListener('keyup',e=>{if(e.target.classList.contains('auth-input')&&e.key==='Enter')e.target.id.includes('Pass')?doLogin():null;});
+document.addEventListener('keyup',e=>{if(e.target.classList.contains('auth-input')&&e.key==='Enter')doLogin();});
 
 checkAuth();
 </script>
