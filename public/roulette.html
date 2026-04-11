@@ -491,7 +491,7 @@ let bets={},betHist=[],lastBets={},history=[],wheelRot=0;
 let myReady=false,betTimerActive=false,betTimerVal=20,betTimerInterval=null;
 const tableKey='strix_table_1';
 
-/* AUTH */
+/* AUTH — pull from Strix server session (strix_user) with full player data */
 function switchTab(t){
   document.getElementById('loginForm').style.display=t==='login'?'':'none';
   document.getElementById('regForm').style.display=t==='reg'?'':'none';
@@ -499,20 +499,53 @@ function switchTab(t){
   document.getElementById('tabReg').classList.toggle('active',t==='reg');
   document.getElementById('authError').textContent='';
 }
+
 function checkAuth(){
-  const strixTok=localStorage.getItem('strix_token');
-  const casinoU=localStorage.getItem('casino_user')||sessionStorage.getItem('casino_user');
-  const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
-  if(strixTok||casinoU){
-    if(casinoU){try{const d=JSON.parse(casinoU);currentUser=d.username||d.name||'Player';}catch(e){currentUser='Player';}}
-    else if(own.user){currentUser=own.user;}
-    else currentUser='Player';
-    balance=own.balance||1000;history=own.history||[];
-    bootGame();return;
+  // Priority 1: strix_user — full player object saved by home.html on auth_ok
+  const strixUser=localStorage.getItem('strix_user');
+  if(strixUser){
+    try{
+      const d=JSON.parse(strixUser);
+      currentUser=d.username||d.name||'Player';
+      // Use server balance if available; fall back to local roulette save
+      const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+      balance=(own.user===currentUser&&own.balance!=null)?own.balance:(d.balance??1000);
+      history=(own.user===currentUser)?own.history||[]:[];
+      bootGame();return;
+    }catch(e){}
   }
-  if(own.user){currentUser=own.user;balance=own.balance||1000;history=own.history||[];bootGame();return;}
+  // Priority 2: strix_token alone (token present but user object not yet saved)
+  const strixTok=localStorage.getItem('strix_token');
+  if(strixTok){
+    // Try to decode JWT payload for username (no signature check needed client-side)
+    try{
+      const payload=JSON.parse(atob(strixTok.split('.')[1]));
+      currentUser=payload.username||payload.sub||'Player';
+      const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+      balance=(own.user===currentUser&&own.balance!=null)?own.balance:1000;
+      history=(own.user===currentUser)?own.history||[]:[];
+      bootGame();return;
+    }catch(e){}
+  }
+  // Priority 3: casino_user (older session key)
+  const casinoU=localStorage.getItem('casino_user')||sessionStorage.getItem('casino_user');
+  if(casinoU){
+    try{
+      const d=JSON.parse(casinoU);
+      currentUser=d.username||d.name||'Player';
+      const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+      balance=(own.user===currentUser&&own.balance!=null)?own.balance:(d.balance??1000);
+      history=(own.user===currentUser)?own.history||[]:[];
+      bootGame();return;
+    }catch(e){}
+  }
+  // Priority 4: own saved roulette session
+  const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+  if(own.user){currentUser=own.user;balance=own.balance??1000;history=own.history||[];bootGame();return;}
+  // No session — show login
   document.getElementById('loginOverlay').classList.remove('hidden');
 }
+
 function doLogin(){
   const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value.trim();
   if(!u||!p){document.getElementById('authError').textContent='Fill in all fields';return;}
@@ -540,6 +573,39 @@ const SFILLS=[
   '#c0392b','#111','#c0392b','#111','#c0392b','#111','#c0392b','#111','#c0392b',
   '#111','#c0392b','#111','#c0392b','#111','#c0392b','#111','#c0392b','#111'
 ];
+
+// The arrow points UP (top of canvas = -Math.PI/2 in world space).
+// Sector i starts at angle: -π/2 + i*arc  (in wheel's local rotated frame).
+// After applying wheelRot, sector i's START in world space = -π/2 + i*arc - wheelRot.
+// The number under the arrow is the sector whose MID angle ≈ -π/2 mod 2π world.
+// Equivalently: which sector index i satisfies  ((wheelRot + π/2) / arc) ≈ i + 0.5
+function getNumberUnderArrow(rot){
+  const arc=2*Math.PI/RL_ORDER.length;
+  // Normalise rotation so sector 0 starts at top (−π/2).
+  // Arrow is at angle 0 in world space (top). Sector i centre in world = -π/2 + (i+0.5)*arc − rot
+  // We want: -π/2 + (i+0.5)*arc - rot ≡ 0 (mod 2π)  → i = (rot + π/2)/arc - 0.5
+  let raw=(rot+Math.PI/2)/arc;
+  let idx=Math.floor(raw)%RL_ORDER.length;
+  if(idx<0)idx+=RL_ORDER.length;
+  return {num:RL_ORDER[idx],idx};
+}
+
+// Preload tick sound once
+const tickAudio=new Audio('Sounds/rou_tick.flac');
+tickAudio.preload='auto';
+let _lastTickIdx=-1;
+
+function maybePlayTick(rot){
+  const {idx}=getNumberUnderArrow(rot);
+  if(idx!==_lastTickIdx){
+    _lastTickIdx=idx;
+    // Clone to allow rapid overlapping ticks at high speed
+    const s=tickAudio.cloneNode();
+    s.volume=0.55;
+    s.play().catch(()=>{});
+  }
+}
+
 function drawW(rot){
   const c=document.getElementById('wc'),ctx=c.getContext('2d');
   const sz=366,cx=sz/2,cy=sz/2,r=sz/2-4,ir=44;
@@ -564,7 +630,28 @@ function drawW(rot){
   ctx.beginPath();ctx.arc(0,0,10,0,2*Math.PI);ctx.fillStyle='#a3e635';ctx.fill();
   ctx.restore();
 }
-function startIdle(){drawW(wheelRot);(function loop(){if(!spinning){wheelRot+=.0018;drawW(wheelRot);}requestAnimationFrame(loop);})();}
+function startIdle(){
+  drawW(wheelRot);
+  (function loop(){
+    if(!spinning){
+      wheelRot+=.0018;
+      drawW(wheelRot);
+      // Soft tick at 8% volume during idle — only when tab is visible
+      if(!document.hidden) maybePlayTickIdle(wheelRot);
+    }
+    requestAnimationFrame(loop);
+  })();
+}
+
+function maybePlayTickIdle(rot){
+  const {idx}=getNumberUnderArrow(rot);
+  if(idx!==_lastTickIdx){
+    _lastTickIdx=idx;
+    const s=tickAudio.cloneNode();
+    s.volume=0.08;
+    s.play().catch(()=>{});
+  }
+}
 
 /* CHIPS */
 function buildChips(){
@@ -721,17 +808,40 @@ function triggerSpin(){
   const st=document.getElementById('spinSt');
   st.className='spin-status spinning';st.textContent='No more bets — ball is rolling…';
 
-  const landNum=RL_ORDER[Math.floor(Math.random()*RL_ORDER.length)];
-  const idx=RL_ORDER.indexOf(landNum);
+  // Pick winning number and compute exact target rotation
+  const landIdx=Math.floor(Math.random()*RL_ORDER.length);
+  const landNum=RL_ORDER[landIdx];
   const arc=2*Math.PI/RL_ORDER.length;
-  const midAngle=-Math.PI/2+(idx+.5)*arc;
-  const target=wheelRot+2*Math.PI*(5+Math.floor(Math.random()*3))+(-midAngle-wheelRot%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-  const dur=4600,t0=performance.now(),r0=wheelRot;
+
+  // We want getNumberUnderArrow(target) === landIdx
+  // getNumberUnderArrow: idx = floor((rot + π/2) / arc)  mod n
+  // So: target + π/2 = (landIdx + 0.5) * arc  → target = (landIdx + 0.5)*arc - π/2
+  // But add full extra spins for drama, keeping current wheelRot as base
+  const exactAngle=(landIdx+0.5)*arc - Math.PI/2;
+  // normalise exactAngle into [0, 2π)
+  const norm=((exactAngle%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
+  // current rotation mod 2π
+  const curNorm=((wheelRot%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
+  // angular distance to travel (always forward / positive)
+  let delta=norm-curNorm;
+  if(delta<=0)delta+=2*Math.PI;
+  // add 6–9 full extra revolutions
+  const extraRevs=6+Math.floor(Math.random()*4);
+  const target=wheelRot+delta+extraRevs*2*Math.PI;
+
+  const dur=5200, t0=performance.now(), r0=wheelRot;
+  _lastTickIdx=-1; // reset tick tracker
 
   (function frame(now){
-    const elapsed=now-t0,t=Math.min(elapsed/dur,1),ease=1-Math.pow(1-t,4);
-    wheelRot=r0+(target-r0)*ease;drawW(wheelRot);
-    if(t<1){requestAnimationFrame(frame);}else{wheelRot=target;drawW(wheelRot);finishSpin(landNum);}
+    const elapsed=now-t0, t=Math.min(elapsed/dur,1);
+    // ease-out quart
+    const ease=1-Math.pow(1-t,4);
+    wheelRot=r0+(target-r0)*ease;
+    drawW(wheelRot);
+    // tick sound — only fire during spin, rate-limited to avoid spam at high speed
+    if(spinning) maybePlayTick(wheelRot);
+    if(t<1){requestAnimationFrame(frame);}
+    else{wheelRot=target;drawW(wheelRot);finishSpin(landNum);}
   })(performance.now());
 }
 
@@ -926,6 +1036,49 @@ function showToast(hl,type,am=''){
 /* HELPERS */
 function numColor(n){return n===0?'green':RED_SET.has(n)?'red':'black';}
 function fmtB(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+/* LIVE BALANCE SYNC — reuse Strix socket if available */
+(function connectStrixSocket(){
+  const tok=localStorage.getItem('strix_token');
+  if(!tok)return;
+  // Dynamically load socket.io only if not already loaded
+  function initSocket(){
+    try{
+      const SERVER='https://strix-1xlv.onrender.com';
+      const sock=window.io?window.io(SERVER,{transports:['websocket','polling']}):null;
+      if(!sock)return;
+      sock.on('connect',()=>sock.emit('auth',tok));
+      sock.on('auth_ok',data=>{
+        // Save full user object so roulette.html can read name+balance on next load
+        localStorage.setItem('strix_user',JSON.stringify(data));
+        // If we're already booted, sync balance display
+        if(currentUser&&data.username===currentUser){
+          // Only update if no local roulette session has richer data
+          const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+          if(!own.balance||own.balance===1000){
+            balance=data.balance;
+            document.getElementById('balDisp').textContent=fmtB(balance);
+            save();
+          }
+        }
+      });
+      sock.on('balance_update',data=>{
+        if(data.username===currentUser){
+          balance=data.balance;
+          document.getElementById('balDisp').textContent=fmtB(balance);
+          save();
+        }
+      });
+    }catch(e){}
+  }
+  if(window.io){initSocket();}
+  else{
+    const s=document.createElement('script');
+    s.src='https://cdn.socket.io/4.7.4/socket.io.min.js';
+    s.onload=initSocket;
+    document.head.appendChild(s);
+  }
+})();
 
 /* KEYBOARD */
 document.addEventListener('keyup',e=>{if(e.target.classList.contains('auth-input')&&e.key==='Enter')doLogin();});
