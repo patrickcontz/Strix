@@ -597,8 +597,6 @@ function buildChips() {
     const lbl = ch.value >= 1000 ? '$'+(ch.value/1000)+'K' : '$'+ch.value;
     d.innerHTML = `
       <img class="chip-img" src="${ch.src}" alt="${lbl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-      <div class="chip-fallback" style="background:${CHIP_FB[i]};">${lbl}</div>
-      <div class="chip-lbl">${lbl}</div>
     `;
     g.appendChild(d);
   });
