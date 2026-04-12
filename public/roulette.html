@@ -54,11 +54,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
 .pt-stat-val{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--lime);}
 
 /* GAME LAYOUT */
-.game-layout{display:grid;grid-template-columns:1fr 340px 310px;gap:14px;align-items:start;}
-@media(max-width:1200px){.game-layout{grid-template-columns:1fr 310px;}}
-@media(max-width:900px){.game-layout{grid-template-columns:1fr;}}
+.game-layout{display:grid;grid-template-columns:1fr 310px;gap:14px;align-items:start;}
+@media(max-width:1100px){.game-layout{grid-template-columns:1fr;}}
 .left-col{display:flex;flex-direction:column;gap:12px;}
-.mid-col{display:flex;flex-direction:column;gap:12px;}
 .right-col{display:flex;flex-direction:column;gap:12px;position:sticky;top:14px;}
 
 /* PANEL BASE */
@@ -166,19 +164,21 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
 .color-swatch{width:13px;height:13px;border-radius:50%;border:1px solid rgba(255,255,255,.15);flex-shrink:0;}
 
 /* CHIP TRAY */
-.chips-grid{display:grid;grid-template-columns:repeat(4,64px);gap:8px;}
-.chip-btn{cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;border:2px solid rgba(255,255,255,.05);border-radius:20%;padding:6px;position:relative;}
-.chip-btn:hover{transform:scale(1.05);border-color:var(--lime);box-shadow:0 6px 20px rgba(132,204,22,.3);}
-.chip-btn.active{border-color:var(--lime);box-shadow:0 6px 20px rgba(132,204,22,.5);}
-.chip-img{width:64px;height:64px;object-fit:contain;display:block;}
+.chips-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.chip-btn{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:transform .2s;position:relative;padding-top:4px;}
+.chip-btn:hover{transform:translateY(-4px);}
+.chip-btn.active{transform:translateY(-6px);}
+.chip-btn.active::after{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:var(--lime-bright);box-shadow:0 0 8px var(--lime);}
+.chip-img{width:54px;height:54px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6));transition:filter .2s;}
+.chip-btn.active .chip-img{filter:drop-shadow(0 0 10px rgba(132,204,22,.45)) drop-shadow(0 4px 10px rgba(0,0,0,.6));}
+.chip-fallback{width:54px;height:54px;border-radius:50%;display:none;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:9px;font-weight:900;border:3px solid rgba(255,255,255,.25);box-shadow:0 4px 10px rgba(0,0,0,.6);}
+.chip-lbl{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--text-dim);}
+.chip-btn.active .chip-lbl{color:var(--lime-bright);}
 
 /* BET SUMMARY */
 .bet-total-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid var(--border);}
 .bt-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);}
 .bt-val{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:var(--lime-bright);}
-.payout-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:10px;background:rgba(132,204,22,.04);border:1px solid var(--border-lime);border-radius:8px;}
-.payout-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--lime-dim);}
-.payout-val{font-family:'Orbitron',monospace;font-size:18px;font-weight:900;color:var(--lime-bright);}
 .breakdown{display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto;margin-bottom:12px;}
 .breakdown::-webkit-scrollbar{width:3px;}
 .breakdown::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -400,9 +400,9 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
 
     </div>
 
-    <!-- MIDDLE - Chip Tray & Bet Summary -->
-    <div class="mid-col">
-      
+    <!-- RIGHT -->
+    <div class="right-col">
+
       <!-- CHIP TRAY -->
       <div class="panel">
         <div class="panel-head"><div class="panel-dot" style="background:var(--purple);box-shadow:0 0 8px var(--purple);"></div><div class="panel-title" style="color:var(--purple);">Chip Tray</div></div>
@@ -417,10 +417,6 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
             <div class="bt-lbl">Total Bet</div>
             <div class="bt-val">$<span id="betTot">0</span></div>
           </div>
-          <div class="payout-row" id="payoutRow" style="display:none;">
-            <div class="payout-lbl">Potential Win</div>
-            <div class="payout-val" id="potentialPayout">—</div>
-          </div>
           <div class="breakdown" id="breakdown"></div>
           <div class="action-col">
             <button class="btn-spin" id="spinBtn" onclick="doSpin()">SPIN</button>
@@ -432,11 +428,6 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
           </div>
         </div>
       </div>
-
-    </div>
-
-    <!-- RIGHT - Players -->
-    <div class="right-col">
 
       <!-- PLAYERS -->
       <div class="panel">
@@ -477,9 +468,7 @@ footer{border-top:1px solid var(--border);background:var(--bg-card);padding:28px
   </div>
 </footer>
 
-<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <script>
-const SERVER_URL='https://strix-1xlv.onrender.com';
 const RL_ORDER=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
 const RED_SET=new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 
@@ -494,16 +483,15 @@ const chips=[
   {value:1000,src:'Chips/chip_1000.png'},
   {value:2000,src:'Chips/chip_2000.png'}
 ];
+const CHIP_FB=['#e74c3c','#2980b9','#27ae60','#8e44ad','#2c3e50','#c0392b','#d4ac0d','#1abc9c'];
 const AVATAR_COLORS=['#84cc16','#38bdf8','#f59e0b','#a78bfa','#ef4444'];
 
-let authToken=localStorage.getItem('strix_token');
-let socket=null;
 let currentUser=null,balance=1000,chipVal=5,spinning=false;
 let bets={},betHist=[],lastBets={},history=[],wheelRot=0;
 let myReady=false,betTimerActive=false,betTimerVal=20,betTimerInterval=null;
-let roomPlayers=[];
+const tableKey='strix_table_1';
 
-/* AUTH */
+/* AUTH — pull from Strix server session (strix_user) with full player data */
 function switchTab(t){
   document.getElementById('loginForm').style.display=t==='login'?'':'none';
   document.getElementById('regForm').style.display=t==='reg'?'':'none';
@@ -512,92 +500,70 @@ function switchTab(t){
   document.getElementById('authError').textContent='';
 }
 
-async function doLogin(){
-  const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value.trim();
-  if(!u||!p){document.getElementById('authError').textContent='Fill in all fields';return;}
-  try{
-    const r=await fetch(SERVER_URL+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-    const d=await r.json();
-    if(!r.ok){document.getElementById('authError').textContent=d.error||'Login failed';return;}
-    onAuthSuccess(d);
-  }catch(e){document.getElementById('authError').textContent='Cannot connect to server';}
-}
-
-async function doRegister(){
-  const u=document.getElementById('regUser').value.trim(),p=document.getElementById('regPass').value,p2=document.getElementById('regPass2').value;
-  if(!u||!p||!p2){document.getElementById('authError').textContent='Fill in all fields';return;}
-  if(p!==p2){document.getElementById('authError').textContent='Passwords do not match';return;}
-  try{
-    const r=await fetch(SERVER_URL+'/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-    const d=await r.json();
-    if(!r.ok){document.getElementById('authError').textContent=d.error||'Registration failed';return;}
-    onAuthSuccess(d);
-  }catch(e){document.getElementById('authError').textContent='Cannot connect to server';}
-}
-
-function onAuthSuccess(data){
-  authToken=data.token;
-  currentUser={username:data.username,balance:data.balance};
-  balance=data.balance;
-  localStorage.setItem('strix_token',authToken);
-  localStorage.setItem('strix_user',JSON.stringify(currentUser));
-  document.getElementById('loginOverlay').classList.add('hidden');
-  document.getElementById('userDisp').textContent=data.username;
-  document.getElementById('balDisp').textContent=fmtB(data.balance);
-  connectSocket();
-  bootGame();
-}
-
-function logOut(){
-  if(socket)socket.emit('leave_roulette');
-  localStorage.removeItem('strix_token');
-  localStorage.removeItem('strix_user');
-  location.reload();
-}
-
-function connectSocket(){
-  if(socket)return;
-  socket=io(SERVER_URL,{transports:['websocket','polling']});
-  socket.on('connect',()=>{if(authToken)socket.emit('auth',authToken);});
-  socket.on('auth_ok',data=>{
-    currentUser=data;balance=data.balance;
-    localStorage.setItem('strix_user',JSON.stringify(data));
-    document.getElementById('balDisp').textContent=fmtB(balance);
-    socket.emit('join_roulette');
-  });
-  socket.on('auth_error',msg=>{localStorage.removeItem('strix_token');authToken=null;document.getElementById('loginOverlay').classList.remove('hidden');});
-  socket.on('balance_update',data=>{if(data.username===currentUser.username){balance=data.balance;document.getElementById('balDisp').textContent=fmtB(balance);}});
-  
-  // Roulette multiplayer events
-  socket.on('roulette_players',players=>{roomPlayers=players;renderPlayers();});
-  socket.on('roulette_timer_start',data=>{if(!betTimerActive)startBetTimer(data.seconds);});
-  socket.on('roulette_spin_start',()=>{if(!spinning)triggerSpin();});
-  socket.on('roulette_result',data=>{
-    if(spinning)return; // Already handled locally
-    const {number,players}=data;
-    finishSpin(number,players);
-  });
-}
-
 function checkAuth(){
+  // Priority 1: strix_user — full player object saved by home.html on auth_ok
   const strixUser=localStorage.getItem('strix_user');
   if(strixUser){
     try{
       const d=JSON.parse(strixUser);
-      currentUser=d;balance=d.balance||1000;
-      authToken=localStorage.getItem('strix_token');
-      document.getElementById('loginOverlay').classList.add('hidden');
-      document.getElementById('userDisp').textContent=d.username;
-      document.getElementById('balDisp').textContent=fmtB(balance);
-      connectSocket();
+      currentUser=d.username||d.name||'Player';
+      // Use server balance if available; fall back to local roulette save
+      const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+      balance=(own.user===currentUser&&own.balance!=null)?own.balance:(d.balance??1000);
+      history=(own.user===currentUser)?own.history||[]:[];
       bootGame();return;
     }catch(e){}
   }
+  // Priority 2: strix_token alone (token present but user object not yet saved)
+  const strixTok=localStorage.getItem('strix_token');
+  if(strixTok){
+    // Try to decode JWT payload for username (no signature check needed client-side)
+    try{
+      const payload=JSON.parse(atob(strixTok.split('.')[1]));
+      currentUser=payload.username||payload.sub||'Player';
+      const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+      balance=(own.user===currentUser&&own.balance!=null)?own.balance:1000;
+      history=(own.user===currentUser)?own.history||[]:[];
+      bootGame();return;
+    }catch(e){}
+  }
+  // Priority 3: casino_user (older session key)
+  const casinoU=localStorage.getItem('casino_user')||sessionStorage.getItem('casino_user');
+  if(casinoU){
+    try{
+      const d=JSON.parse(casinoU);
+      currentUser=d.username||d.name||'Player';
+      const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+      balance=(own.user===currentUser&&own.balance!=null)?own.balance:(d.balance??1000);
+      history=(own.user===currentUser)?own.history||[]:[];
+      bootGame();return;
+    }catch(e){}
+  }
+  // Priority 4: own saved roulette session
+  const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+  if(own.user){currentUser=own.user;balance=own.balance??1000;history=own.history||[];bootGame();return;}
+  // No session — show login
   document.getElementById('loginOverlay').classList.remove('hidden');
 }
 
+function doLogin(){
+  const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value.trim();
+  if(!u||!p){document.getElementById('authError').textContent='Fill in all fields';return;}
+  currentUser=u;balance=1000;history=[];save();bootGame();
+}
+function doRegister(){
+  const u=document.getElementById('regUser').value.trim(),p=document.getElementById('regPass').value,p2=document.getElementById('regPass2').value;
+  if(!u||!p||!p2){document.getElementById('authError').textContent='Fill in all fields';return;}
+  if(p!==p2){document.getElementById('authError').textContent='Passwords do not match';return;}
+  currentUser=u;balance=1000;history=[];save();bootGame();
+}
+function logOut(){leaveTable();localStorage.removeItem('strix_roulette');location.reload();}
+function save(){localStorage.setItem('strix_roulette',JSON.stringify({user:currentUser,balance,history}));}
 function bootGame(){
-  buildChips();buildTable();renderHistory();startIdle();
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('userDisp').textContent=currentUser;
+  document.getElementById('balDisp').textContent=fmtB(balance);
+  buildChips();buildTable();renderHistory();joinTable();startIdle();
 }
 
 /* WHEEL */
@@ -608,13 +574,23 @@ const SFILLS=[
   '#111','#c0392b','#111','#c0392b','#111','#c0392b','#111','#c0392b','#111'
 ];
 
+// The arrow points UP (top of canvas = -Math.PI/2 in world space).
+// Sector i starts at angle: -π/2 + i*arc  (in wheel's local rotated frame).
+// After applying wheelRot, sector i's START in world space = -π/2 + i*arc - wheelRot.
+// The number under the arrow is the sector whose MID angle ≈ -π/2 mod 2π world.
+// Equivalently: which sector index i satisfies  ((wheelRot + π/2) / arc) ≈ i + 0.5
 function getNumberUnderArrow(rot){
   const arc=2*Math.PI/RL_ORDER.length;
-  const norm=((rot%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
-  const idx=Math.floor(norm/arc)%RL_ORDER.length;
+  // Normalise rotation so sector 0 starts at top (−π/2).
+  // Arrow is at angle 0 in world space (top). Sector i centre in world = -π/2 + (i+0.5)*arc − rot
+  // We want: -π/2 + (i+0.5)*arc - rot ≡ 0 (mod 2π)  → i = (rot + π/2)/arc - 0.5
+  let raw=(rot+Math.PI/2)/arc;
+  let idx=Math.floor(raw)%RL_ORDER.length;
+  if(idx<0)idx+=RL_ORDER.length;
   return {num:RL_ORDER[idx],idx};
 }
 
+// Preload tick sound once
 const tickAudio=new Audio('Sounds/rou_tick.flac');
 tickAudio.preload='auto';
 let _lastTickIdx=-1;
@@ -623,6 +599,7 @@ function maybePlayTick(rot){
   const {idx}=getNumberUnderArrow(rot);
   if(idx!==_lastTickIdx){
     _lastTickIdx=idx;
+    // Clone to allow rapid overlapping ticks at high speed
     const s=tickAudio.cloneNode();
     s.volume=0.55;
     s.play().catch(()=>{});
@@ -637,7 +614,7 @@ function drawW(rot){
   ctx.save();ctx.translate(cx,cy);ctx.rotate(rot||0);
   ctx.beginPath();ctx.arc(0,0,r+4,0,2*Math.PI);ctx.fillStyle='#162616';ctx.fill();
   for(let i=0;i<n;i++){
-    const sa=i*arc,ea=sa+arc;
+    const sa=-Math.PI/2+i*arc,ea=sa+arc;
     ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r,sa,ea);ctx.closePath();
     ctx.fillStyle=SFILLS[i];ctx.fill();
     ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=.8;ctx.stroke();
@@ -645,7 +622,7 @@ function drawW(rot){
     ctx.fillStyle='rgba(255,255,255,.9)';ctx.font='bold 11px Orbitron,monospace';
     ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(RL_ORDER[i],0,0);ctx.restore();
   }
-  for(let i=0;i<n;i++){const a=i*arc;ctx.beginPath();ctx.moveTo(ir*Math.cos(a),ir*Math.sin(a));ctx.lineTo(r*Math.cos(a),r*Math.sin(a));ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1;ctx.stroke();}
+  for(let i=0;i<n;i++){const a=-Math.PI/2+i*arc;ctx.beginPath();ctx.moveTo(ir*Math.cos(a),ir*Math.sin(a));ctx.lineTo(r*Math.cos(a),r*Math.sin(a));ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1;ctx.stroke();}
   ctx.beginPath();ctx.arc(0,0,ir,0,2*Math.PI);
   const g=ctx.createRadialGradient(-6,-6,3,0,0,ir);g.addColorStop(0,'#1e3a1e');g.addColorStop(1,'#0a150a');
   ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(132,204,22,.25)';ctx.lineWidth=2;ctx.stroke();
@@ -653,14 +630,14 @@ function drawW(rot){
   ctx.beginPath();ctx.arc(0,0,10,0,2*Math.PI);ctx.fillStyle='#a3e635';ctx.fill();
   ctx.restore();
 }
-
 function startIdle(){
   drawW(wheelRot);
   (function loop(){
     if(!spinning){
       wheelRot+=.0018;
       drawW(wheelRot);
-      if(!document.hidden)maybePlayTickIdle(wheelRot);
+      // Soft tick at 8% volume during idle — only when tab is visible
+      if(!document.hidden) maybePlayTickIdle(wheelRot);
     }
     requestAnimationFrame(loop);
   })();
@@ -683,7 +660,10 @@ function buildChips(){
     const d=document.createElement('div');
     d.className='chip-btn'+(i===0?' active':'');
     d.onclick=()=>{chipVal=ch.value;document.querySelectorAll('.chip-btn').forEach(b=>b.classList.remove('active'));d.classList.add('active');};
-    d.innerHTML=`<img class="chip-img" src="${ch.src}" alt="$${ch.value}">`;
+    const lbl=ch.value>=1000?'$'+(ch.value/1000)+'K':'$'+ch.value;
+    d.innerHTML=`<img class="chip-img" src="${ch.src}" alt="${lbl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="chip-fallback" style="background:${CHIP_FB[i]};">${lbl}</div>
+    <div class="chip-lbl">${lbl}</div>`;
     g.appendChild(d);
   });
   chipVal=5;
@@ -724,53 +704,34 @@ function bet(key){
   if(spinning)return;
   if(balance<chipVal){showToast('Insufficient balance','lose',`Need $${chipVal}`);return;}
   balance-=chipVal;bets[key]=(bets[key]||0)+chipVal;betHist.push({key,v:chipVal});
+  updateTableHasBet(true);
   refreshUI();
-  if(socket)socket.emit('roulette_bet_placed',{hasBet:true});
+  checkAllBet();
 }
 function undoLast(){
   if(!betHist.length)return;
   const l=betHist.pop();balance+=l.v;bets[l.key]-=l.v;if(bets[l.key]<=0)delete bets[l.key];
+  if(!Object.values(bets).some(v=>v>0))updateTableHasBet(false);
   refreshUI();
-  if(socket&&Object.keys(bets).length===0)socket.emit('roulette_bet_placed',{hasBet:false});
 }
 function clearBets(){
   let t=0;for(const k in bets)t+=bets[k];balance+=t;bets={};betHist=[];
+  updateTableHasBet(false);
   refreshUI();
-  if(socket)socket.emit('roulette_bet_placed',{hasBet:false});
 }
 function doRebet(){
   if(!Object.keys(lastBets).length){showToast('No previous bet','lose','Place a bet first');return;}
   let cost=0;for(const k in lastBets)cost+=lastBets[k];
   if(balance<cost){showToast('Insufficient balance','lose',`Need $${cost}`);return;}
   for(const k in lastBets){balance-=lastBets[k];bets[k]=(bets[k]||0)+lastBets[k];}
+  updateTableHasBet(true);
   refreshUI();
-  if(socket)socket.emit('roulette_bet_placed',{hasBet:true});
+  checkAllBet();
 }
-
 function refreshUI(){
   document.getElementById('balDisp').textContent=fmtB(balance);
   let t=0;for(const k in bets)t+=bets[k];
   document.getElementById('betTot').textContent=t.toLocaleString();
-  
-  // Calculate potential payout
-  let maxPayout=0;
-  for(const k in bets){
-    const b=bets[k];
-    let m=0;
-    if(!isNaN(k))m=b*35; // Straight up
-    else if(k==='1-12'||k==='13-24'||k==='25-36'||k.startsWith('col'))m=b*2;
-    else m=b; // Even money bets
-    if(m>maxPayout)maxPayout=m;
-  }
-  const payoutRow=document.getElementById('payoutRow');
-  if(maxPayout>0){
-    payoutRow.style.display='flex';
-    const multiplier=(maxPayout/t).toFixed(1);
-    document.getElementById('potentialPayout').textContent=`$${maxPayout.toLocaleString()} (${multiplier}x)`;
-  }else{
-    payoutRow.style.display='none';
-  }
-  
   // cells
   document.querySelectorAll('.bet-cell,.oc').forEach(el=>{
     el.classList.remove('selected');
@@ -792,6 +753,7 @@ function refreshUI(){
     row.innerHTML=`<span class="bd-key">${keyLabel(key)}</span><span class="bd-val">$${bets[key].toLocaleString()}</span>`;
     bd.appendChild(row);
   }
+  save();
 }
 function getCell(k){return document.getElementById('bc-'+k)||document.querySelector(`[onclick="bet('${k}')"]`);}
 function keyLabel(k){
@@ -826,9 +788,13 @@ function doSpin(){
   if(spinning)return;
   const total=Object.values(bets).reduce((a,b)=>a+b,0);
   if(!total){showToast('Place a bet first!','lose','No bets placed');return;}
-  if(socket)socket.emit('roulette_ready');
-  document.getElementById('mpReadyBtn').textContent='Ready ✓';
-  document.getElementById('mpReadyBtn').disabled=true;
+  triggerSpin();
+}
+
+function checkAllBet(){
+  const t=getTable();if(!t||t.players.length<=1)return;
+  // If all players have bet, start timer if not already active
+  checkMultiplayer();
 }
 
 function triggerSpin(){
@@ -842,32 +808,44 @@ function triggerSpin(){
   const st=document.getElementById('spinSt');
   st.className='spin-status spinning';st.textContent='No more bets — ball is rolling…';
 
+  // Pick winning number and compute exact target rotation
   const landIdx=Math.floor(Math.random()*RL_ORDER.length);
   const landNum=RL_ORDER[landIdx];
   const arc=2*Math.PI/RL_ORDER.length;
 
-  const targetAngle=landIdx*arc;
+  // We want getNumberUnderArrow(target) === landIdx
+  // getNumberUnderArrow: idx = floor((rot + π/2) / arc)  mod n
+  // So: target + π/2 = (landIdx + 0.5) * arc  → target = (landIdx + 0.5)*arc - π/2
+  // But add full extra spins for drama, keeping current wheelRot as base
+  const exactAngle=(landIdx+0.5)*arc - Math.PI/2;
+  // normalise exactAngle into [0, 2π)
+  const norm=((exactAngle%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
+  // current rotation mod 2π
   const curNorm=((wheelRot%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
-  let delta=targetAngle-curNorm;
-  if(delta<0)delta+=2*Math.PI;
-  const extraRevs=8+Math.floor(Math.random()*3);
+  // angular distance to travel (always forward / positive)
+  let delta=norm-curNorm;
+  if(delta<=0)delta+=2*Math.PI;
+  // add 6–9 full extra revolutions
+  const extraRevs=6+Math.floor(Math.random()*4);
   const target=wheelRot+delta+extraRevs*2*Math.PI;
 
-  const dur=8000,t0=performance.now(),r0=wheelRot;
-  _lastTickIdx=-1;
+  const dur=5200, t0=performance.now(), r0=wheelRot;
+  _lastTickIdx=-1; // reset tick tracker
 
   (function frame(now){
-    const elapsed=now-t0,t=Math.min(elapsed/dur,1);
-    const ease=1-Math.pow(1-t,3);
+    const elapsed=now-t0, t=Math.min(elapsed/dur,1);
+    // ease-out quart
+    const ease=1-Math.pow(1-t,4);
     wheelRot=r0+(target-r0)*ease;
     drawW(wheelRot);
-    if(spinning)maybePlayTick(wheelRot);
+    // tick sound — only fire during spin, rate-limited to avoid spam at high speed
+    if(spinning) maybePlayTick(wheelRot);
     if(t<1){requestAnimationFrame(frame);}
-    else{wheelRot=target;drawW(wheelRot);if(socket)socket.emit('roulette_spin_complete',{number:landNum});else finishSpin(landNum,[]);}
+    else{wheelRot=target;drawW(wheelRot);finishSpin(landNum);}
   })(performance.now());
 }
 
-function finishSpin(num,players){
+function finishSpin(num){
   const win=calcPay(num),totalBet=Object.values(bets).reduce((a,b)=>a+b,0);
   balance+=win;history.unshift(num);if(history.length>40)history.pop();
   lastBets={...bets};bets={};betHist=[];myReady=false;
@@ -882,27 +860,103 @@ function finishSpin(num,players){
   if(win>0){st.className='spin-status won';st.textContent=`Number ${num} — You won $${win.toLocaleString()}!`;showToast('YOU WIN!','win',`+$${win.toLocaleString()}`);}
   else{st.className='spin-status lost';st.textContent=`Number ${num} — No win this time.`;showToast('NO WIN','lose',`−$${totalBet.toLocaleString()}`);}
 
-  refreshUI();renderHistory();
+  refreshUI();renderHistory();renderPlayers();
   spinning=false;document.getElementById('spinBtn').disabled=false;
   setTimeout(resetRound,3000);
+  save();
 }
 
 function resetRound(){
+  let t=getTable();
+  if(t){t.timerActive=false;t.timerStart=null;t.players.forEach(p=>{p.hasBet=false;p.ready=false;});setTable(t);}
   myReady=false;betTimerActive=false;
   const st=document.getElementById('spinSt');
   if(st&&!spinning){st.className='spin-status';st.textContent='Place your bets for the next round';}
   const mpBtn=document.getElementById('mpReadyBtn');
   if(mpBtn){mpBtn.disabled=true;mpBtn.textContent='Place a bet';}
+  checkMultiplayer();
+}
+
+/* MULTIPLAYER TABLE (localStorage-based cross-tab sync) */
+function getTable(){try{return JSON.parse(localStorage.getItem(tableKey)||'null');}catch(e){return null;}}
+function setTable(t){localStorage.setItem(tableKey,JSON.stringify(t));}
+
+function joinTable(){
+  let t=getTable();
+  if(!t)t={players:[],timerActive:false,timerStart:null};
+  t.players=t.players.filter(p=>p.username!==currentUser);
+  if(t.players.length>=5){showToast('Table full','lose','Max 5 players');return;}
+  t.players.push({username:currentUser,balance,hasBet:false,ready:false,color:AVATAR_COLORS[t.players.length%AVATAR_COLORS.length],joined:Date.now()});
+  setTable(t);
+  renderPlayers();checkMultiplayer();
+  window._tablePoll=setInterval(()=>{renderPlayers();checkMultiplayer();},1500);
+  window.addEventListener('pagehide',leaveTable);
+  window.addEventListener('beforeunload',leaveTable);
+}
+function leaveTable(){
+  clearInterval(window._tablePoll);
+  let t=getTable();if(!t)return;
+  t.players=t.players.filter(p=>p.username!==currentUser);
+  if(!t.players.length)localStorage.removeItem(tableKey);else setTable(t);
+}
+function updateTableHasBet(hasBet){
+  let t=getTable();if(!t)return;
+  const p=t.players.find(p=>p.username===currentUser);
+  if(p){p.hasBet=hasBet;p.balance=balance;}setTable(t);
+}
+function updateTableReady(ready){
+  let t=getTable();if(!t)return;
+  const p=t.players.find(p=>p.username===currentUser);
+  if(p)p.ready=ready;setTable(t);
+}
+
+function checkMultiplayer(){
+  const t=getTable();if(!t)return;
+  const count=t.players.length;
+  renderPlayers();
+  if(count<=1){
+    // Solo: standard spin button
+    hideMpBar();stopBetTimer();
+    document.getElementById('spinBtn').style.display='';
+    document.getElementById('spinBtn').disabled=spinning;
+    return;
+  }
+  // Multiplayer
+  document.getElementById('spinBtn').style.display='none';
+  const mpBar=document.getElementById('mpBar'),mpText=document.getElementById('mpBarText'),mpBtn=document.getElementById('mpReadyBtn');
+  mpBar.classList.add('active');
+  if(spinning){mpText.innerHTML='<strong>Spinning…</strong> No more bets.';mpBtn.disabled=true;return;}
+
+  // Start or sync timer
+  if(!t.timerActive){
+    t.timerActive=true;t.timerStart=Date.now();setTable(t);
+    if(!betTimerActive)startBetTimer(20);
+  } else if(!betTimerActive){
+    const elapsed=Math.floor((Date.now()-t.timerStart)/1000);
+    const rem=Math.max(0,20-elapsed);
+    if(rem>0)startBetTimer(rem);else{stopBetTimer();triggerSpin();return;}
+  }
+
+  const readyCount=t.players.filter(p=>p.ready).length;
+  const allReady=t.players.every(p=>p.ready);
+  const hasBet=Object.values(bets).some(v=>v>0);
+  mpBtn.disabled=!hasBet||myReady;
+  mpBtn.textContent=myReady?'Ready ✓':hasBet?'Ready ✓':'Place a bet first';
+  mpText.innerHTML=`<strong>${readyCount}/${count}</strong> ready · bet timer active`;
+  document.getElementById('readyCount').textContent=readyCount;
+
+  if(allReady&&count>1&&!spinning){stopBetTimer();triggerSpin();}
 }
 
 function markReady(){
   if(spinning)return;
   if(!Object.values(bets).some(v=>v>0)){showToast('Place a bet first!','lose','');return;}
-  myReady=true;
-  if(socket)socket.emit('roulette_ready');
+  myReady=true;updateTableReady(true);
   document.getElementById('mpReadyBtn').disabled=true;
   document.getElementById('mpReadyBtn').textContent='Ready ✓';
+  checkMultiplayer();
 }
+function hideMpBar(){document.getElementById('mpBar').classList.remove('active');}
 
 /* BET TIMER */
 const CD_TOTAL=169.6;
@@ -913,7 +967,7 @@ function startBetTimer(seconds){
   updateCountdownRing(seconds);
   betTimerInterval=setInterval(()=>{
     betTimerVal--;updateCountdownRing(betTimerVal);
-    if(betTimerVal<=0){stopBetTimer();}
+    if(betTimerVal<=0){stopBetTimer();triggerSpin();}
   },1000);
 }
 function stopBetTimer(){
@@ -929,37 +983,25 @@ function updateCountdownRing(val){
 
 /* PLAYERS RENDER */
 function renderPlayers(){
+  const t=getTable();
+  const players=t?t.players:[{username:currentUser,balance,hasBet:false,ready:false,color:AVATAR_COLORS[0]}];
   const l=document.getElementById('playersList');l.innerHTML='';
-  roomPlayers.forEach(p=>{
-    const isYou=p.username===currentUser.username;
+  players.forEach(p=>{
+    const isYou=p.username===currentUser;
     const ini=(p.username||'P').substring(0,2).toUpperCase();
+    const bal=isYou?balance:(p.balance||0);
     const div=document.createElement('div');
     div.className='p-row'+(isYou?' you':'');
-    div.innerHTML=`<div class="avatar" style="background:${AVATAR_COLORS[roomPlayers.indexOf(p)%AVATAR_COLORS.length]};color:${isYou?'#000':'#fff'};font-size:10px;">${ini}</div>
+    div.innerHTML=`<div class="avatar" style="background:${p.color};color:${isYou?'#000':'#fff'};font-size:10px;">${ini}</div>
       <div class="pi">
         <div class="pname">${p.username}${isYou?' <span style="font-size:9px;color:var(--lime);font-family:\'Orbitron\',monospace;">(YOU)</span>':''}</div>
-        <div class="pbal">$${fmtB(p.balance)}${p.hasBet?' <span style="color:var(--amber);font-size:9px;">· bet</span>':''}${p.ready?' <span style="color:var(--lime);font-size:9px;">· ready</span>':''}</div>
+        <div class="pbal">$${fmtB(bal)}${p.hasBet?' <span style="color:var(--amber);font-size:9px;">· bet</span>':''}${p.ready?' <span style="color:var(--lime);font-size:9px;">· ready</span>':''}</div>
       </div>
       <div class="pdot ${p.ready?'on':'off'}"></div>`;
     l.appendChild(div);
   });
-  document.getElementById('seatCnt').textContent=roomPlayers.length;
-  document.getElementById('readyCount').textContent=roomPlayers.filter(p=>p.ready).length;
-  
-  // Update multiplayer bar
-  if(roomPlayers.length>1){
-    const mpBar=document.getElementById('mpBar');
-    mpBar.classList.add('active');
-    const readyCount=roomPlayers.filter(p=>p.ready).length;
-    document.getElementById('mpBarText').innerHTML=`<strong>${readyCount}/${roomPlayers.length}</strong> ready`;
-    const hasBet=Object.values(bets).some(v=>v>0);
-    document.getElementById('mpReadyBtn').disabled=!hasBet||myReady||spinning;
-    document.getElementById('mpReadyBtn').textContent=myReady?'Ready ✓':hasBet?'Ready':'Place a bet';
-    document.getElementById('spinBtn').style.display='none';
-  }else{
-    document.getElementById('mpBar').classList.remove('active');
-    document.getElementById('spinBtn').style.display='';
-  }
+  document.getElementById('seatCnt').textContent=players.length;
+  document.getElementById('readyCount').textContent=players.filter(p=>p.ready).length;
 }
 
 /* HISTORY */
@@ -994,6 +1036,49 @@ function showToast(hl,type,am=''){
 /* HELPERS */
 function numColor(n){return n===0?'green':RED_SET.has(n)?'red':'black';}
 function fmtB(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+/* LIVE BALANCE SYNC — reuse Strix socket if available */
+(function connectStrixSocket(){
+  const tok=localStorage.getItem('strix_token');
+  if(!tok)return;
+  // Dynamically load socket.io only if not already loaded
+  function initSocket(){
+    try{
+      const SERVER='https://strix-1xlv.onrender.com';
+      const sock=window.io?window.io(SERVER,{transports:['websocket','polling']}):null;
+      if(!sock)return;
+      sock.on('connect',()=>sock.emit('auth',tok));
+      sock.on('auth_ok',data=>{
+        // Save full user object so roulette.html can read name+balance on next load
+        localStorage.setItem('strix_user',JSON.stringify(data));
+        // If we're already booted, sync balance display
+        if(currentUser&&data.username===currentUser){
+          // Only update if no local roulette session has richer data
+          const own=JSON.parse(localStorage.getItem('strix_roulette')||'{}');
+          if(!own.balance||own.balance===1000){
+            balance=data.balance;
+            document.getElementById('balDisp').textContent=fmtB(balance);
+            save();
+          }
+        }
+      });
+      sock.on('balance_update',data=>{
+        if(data.username===currentUser){
+          balance=data.balance;
+          document.getElementById('balDisp').textContent=fmtB(balance);
+          save();
+        }
+      });
+    }catch(e){}
+  }
+  if(window.io){initSocket();}
+  else{
+    const s=document.createElement('script');
+    s.src='https://cdn.socket.io/4.7.4/socket.io.min.js';
+    s.onload=initSocket;
+    document.head.appendChild(s);
+  }
+})();
 
 /* KEYBOARD */
 document.addEventListener('keyup',e=>{if(e.target.classList.contains('auth-input')&&e.key==='Enter')doLogin();});
