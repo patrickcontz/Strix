@@ -663,8 +663,7 @@ function buildChips(){
     d.onclick=()=>{chipVal=ch.value;document.querySelectorAll('.chip-btn').forEach(b=>b.classList.remove('active'));d.classList.add('active');};
     const lbl=ch.value>=1000?'$'+(ch.value/1000)+'K':'$'+ch.value;
     d.innerHTML=`<img class="chip-img" src="${ch.src}" alt="${lbl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-    <div class="chip-fallback" style="background:${CHIP_FB[i]};">${lbl}</div>
-    <div class="chip-lbl">${lbl}</div>`;
+    <div class="chip-fallback" style="background:${CHIP_FB[i]};">${lbl}</div>`;
     g.appendChild(d);
   });
   chipVal=5;
@@ -814,11 +813,14 @@ function triggerSpin(){
   const landNum=RL_ORDER[landIdx];
   const arc=2*Math.PI/RL_ORDER.length;
 
-  // We want getNumberUnderArrow(target) === landIdx
-  // getNumberUnderArrow: idx = floor((rot + π/2) / arc)  mod n
-  // So: target + π/2 = (landIdx + 0.5) * arc  → target = (landIdx + 0.5)*arc - π/2
-  // But add full extra spins for drama, keeping current wheelRot as base
-  const exactAngle=(landIdx+0.5)*arc - Math.PI/2;
+  // The pointer is at the TOP (angle -π/2 in world space).
+  // Sector i starts at angle: -π/2 + i*arc in the wheel's frame.
+  // After rotation by wheelRot, sector i's START in world = -π/2 + i*arc - wheelRot
+  // We want the CENTRE of sector landIdx to be at -π/2 (under pointer).
+  // Centre of sector i = -π/2 + (i + 0.5)*arc - wheelRot
+  // Setting this equal to -π/2: -π/2 + (landIdx + 0.5)*arc - target = -π/2
+  // So: target = (landIdx + 0.5)*arc
+  const exactAngle=(landIdx+0.5)*arc;
   // normalise exactAngle into [0, 2π)
   const norm=((exactAngle%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
   // current rotation mod 2π
@@ -826,11 +828,11 @@ function triggerSpin(){
   // angular distance to travel (always forward / positive)
   let delta=norm-curNorm;
   if(delta<=0)delta+=2*Math.PI;
-  // add 6–9 full extra revolutions
-  const extraRevs=6+Math.floor(Math.random()*4);
+  // add 8–12 full extra revolutions for longer spin
+  const extraRevs=8+Math.floor(Math.random()*5);
   const target=wheelRot+delta+extraRevs*2*Math.PI;
 
-  const dur=5200, t0=performance.now(), r0=wheelRot;
+  const dur=8500, t0=performance.now(), r0=wheelRot;
   _lastTickIdx=-1; // reset tick tracker
 
   (function frame(now){
