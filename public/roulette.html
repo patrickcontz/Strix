@@ -844,7 +844,9 @@ function triggerSpin(){
     // tick sound — only fire during spin, rate-limited to avoid spam at high speed
     if(spinning) maybePlayTick(wheelRot);
     if(t<1){requestAnimationFrame(frame);}
-    else{wheelRot=target;drawW(wheelRot);finishSpin(landNum);}
+    else{wheelRot=target;drawW(wheelRot);
+    const result = getNumberUnderArrow(wheelRot);
+    finishSpin(result.num);
   })(performance.now());
 }
 
