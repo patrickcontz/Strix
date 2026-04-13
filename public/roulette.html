@@ -564,7 +564,7 @@ function bootGame(){
   document.getElementById('loginOverlay').classList.add('hidden');
   document.getElementById('userDisp').textContent=currentUser;
   document.getElementById('balDisp').textContent=fmtB(balance);
-  buildChips();buildTable();renderHistory();joinTable();startIdle();
+  buildChips();buildTable();renderHistory();joinTable();drawW(wheelRot);
 }
 
 /* WHEEL */
@@ -630,18 +630,6 @@ function drawW(rot){
   for(let i=0;i<8;i++){const a=i*Math.PI/4;ctx.beginPath();ctx.moveTo(Math.cos(a)*13,Math.sin(a)*13);ctx.lineTo(Math.cos(a)*ir,Math.sin(a)*ir);ctx.strokeStyle='rgba(132,204,22,.2)';ctx.lineWidth=1.2;ctx.stroke();}
   ctx.beginPath();ctx.arc(0,0,10,0,2*Math.PI);ctx.fillStyle='#a3e635';ctx.fill();
   ctx.restore();
-}
-function startIdle(){
-  drawW(wheelRot);
-  (function loop(){
-    if(!spinning){
-      wheelRot+=.0018;
-      drawW(wheelRot);
-      // Soft tick at 8% volume during idle — only when tab is visible
-      if(!document.hidden) maybePlayTickIdle(wheelRot);
-    }
-    requestAnimationFrame(loop);
-  })();
 }
 
 function maybePlayTickIdle(rot){
