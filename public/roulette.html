@@ -583,14 +583,10 @@ const SFILLS=[
 function getNumberUnderArrow(rot){
   const arc = 2 * Math.PI / RL_ORDER.length;
 
-  // normalize rotation
   let r = (rot % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
 
-  // shift so pointer aligns to sector center
-  let raw = (r + Math.PI/2) / arc;
-
-  // IMPORTANT: center correction
-  let idx = Math.floor(raw + 0.5) % RL_ORDER.length;
+  // convert to “wheel position index”
+  let idx = Math.round((r + Math.PI/2) / arc) % RL_ORDER.length;
 
   return {
     num: RL_ORDER[idx],
