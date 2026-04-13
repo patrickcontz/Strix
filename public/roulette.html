@@ -491,7 +491,6 @@ let currentUser=null,balance=1000,chipVal=5,spinning=false;
 let bets={},betHist=[],lastBets={},history=[],wheelRot=0;
 let myReady=false,betTimerActive=false,betTimerVal=20,betTimerInterval=null;
 const tableKey='strix_table_1';
-const POINTER_ANGLE = -Math.PI / 2;
 
 /* AUTH — pull from Strix server session (strix_user) with full player data */
 function switchTab(t){
@@ -586,12 +585,8 @@ function getNumberUnderArrow(rot){
 
   let r = (rot % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
 
-  // shift wheel so pointer matches math frame
-  let angle = r - POINTER_ANGLE;
-
-  let idx = Math.floor(angle / arc) % RL_ORDER.length;
-
-  if (idx < 0) idx += RL_ORDER.length;
+  // convert to “wheel position index”
+  let idx = Math.round((r + Math.PI/2) / arc) % RL_ORDER.length;
 
   return {
     num: RL_ORDER[idx],
@@ -623,7 +618,7 @@ function drawW(rot){
   ctx.save();ctx.translate(cx,cy);ctx.rotate(rot||0);
   ctx.beginPath();ctx.arc(0,0,r+4,0,2*Math.PI);ctx.fillStyle='#162616';ctx.fill();
   for(let i=0;i<n;i++){
-    const sa = i * arc;
+    const sa=-Math.PI/2+i*arc,ea=sa+arc;
     ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r,sa,ea);ctx.closePath();
     ctx.fillStyle=SFILLS[i];ctx.fill();
     ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=.8;ctx.stroke();
